@@ -1,0 +1,12 @@
+{
+    "require": {
+        "team-reflex/discord-php": "^10.5",
+        "tumblr/tumblr": "^0.4.2",
+        "abraham/twitteroauth": "^7.0",
+        "facebook/graph-sdk": "^5.1",
+        "google/apiclient": "^2.18",
+        "cboden/ratchet": "^0.4.4",
+        "stripe/stripe-php": "^17.2",
+        "printful/php-api-sdk": "^2.2"
+    }
+}
