@@ -36,6 +36,8 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
+        $this->checkFfmpegStderr(); // log FFmpeg errors safely
+
         // Detect if message is binary
         if (!is_string($msg) || (strlen($msg) > 0 && strpos($msg[0], '{') !== 0)) {
             $this->handleBinaryStream($from, $msg);
@@ -90,72 +92,62 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
 
         $pipes = $this->ffmpegProcesses[$conn->resourceId]["pipes"];
         if (is_resource($pipes[0])) {
-            // Write all incoming binary chunks
             fwrite($pipes[0], $binary);
         }
     }
 
     private function startFfmpeg(ConnectionInterface $conn, $streamKey) {
-    $query = $conn->httpRequest->getUri()->getQuery();
-    parse_str($query, $params);
-    $role = $params["role"] ?? "broadcaster";
+        $query = $conn->httpRequest->getUri()->getQuery();
+        parse_str($query, $params);
+        $role = $params["role"] ?? "broadcaster";
 
-    if ($role === "audio_only") {
-        // Audio-only HLS or RTMP
-        $output = "/var/www/html/live/$streamKey/audio.m3u8"; // HLS location
-        $cmd = "ffmpeg -fflags +nobuffer -flags low_delay -re -f webm -i pipe:0 "
-             . "-c:a aac -ar 44100 -b:a 128k "
-             . "-f hls -hls_time 2 -hls_list_size 3 -hls_flags delete_segments "
-             . escapeshellarg($output);
-    } else {
-        // Video+audio RTMP
-        $rtmpUrl = "rtmp://localhost/live/$streamKey";
-        $cmd = "ffmpeg -fflags +nobuffer -flags low_delay -re -f webm -i pipe:0 "
-             . "-c:v libx264 -preset veryfast -tune zerolatency "
-             . "-c:a aac -ar 44100 -b:a 128k "
-             . "-f flv " . escapeshellarg($rtmpUrl);
+        if ($role === "audio_only") {
+            $output = "/var/www/html/live/$streamKey/audio.m3u8"; // HLS location
+            $cmd = "ffmpeg -fflags +nobuffer -flags low_delay -re -f webm -i pipe:0 "
+                 . "-c:a aac -ar 44100 -b:a 128k "
+                 . "-f hls -hls_time 2 -hls_list_size 3 -hls_flags delete_segments "
+                 . escapeshellarg($output);
+        } else {
+            $rtmpUrl = "rtmp://localhost/live/$streamKey";
+            $cmd = "ffmpeg -fflags +nobuffer -flags low_delay -re -f webm -i pipe:0 "
+                 . "-c:v libx264 -preset veryfast -tune zerolatency "
+                 . "-c:a aac -ar 44100 -b:a 128k "
+                 . "-f flv " . escapeshellarg($rtmpUrl);
+        }
+
+        $spec = [
+            0 => ["pipe", "r"],
+            1 => ["pipe", "w"],
+            2 => ["pipe", "w"],
+        ];
+
+        $proc = proc_open($cmd, $spec, $pipes);
+        if (!is_resource($proc)) {
+            echo "❌ Failed to start FFmpeg for key {$streamKey}\n";
+            return;
+        }
+
+        stream_set_blocking($pipes[0], true);
+        stream_set_blocking($pipes[2], false);
+
+        $this->ffmpegProcesses[$conn->resourceId] = [
+            "proc" => $proc,
+            "pipes" => $pipes,
+            "key" => $streamKey,
+            "role" => $role
+        ];
+
+        echo "🚀 FFmpeg started for connection {$conn->resourceId} as {$role}\n";
     }
 
-    $spec = [
-        0 => ["pipe", "r"], // stdin
-        1 => ["pipe", "w"], // stdout
-        2 => ["pipe", "w"], // stderr
-    ];
-
-    $proc = proc_open($cmd, $spec, $pipes);
-    if (!is_resource($proc)) {
-        echo "❌ Failed to start FFmpeg for key {$streamKey}\n";
-        return;
-    }
-
-    stream_set_blocking($pipes[0], true);
-    stream_set_blocking($pipes[2], false);
-
-    $this->ffmpegProcesses[$conn->resourceId] = [
-        "proc" => $proc,
-        "pipes" => $pipes,
-        "key" => $streamKey,
-        "role" => $role
-    ];
-
-    echo "🚀 FFmpeg started for connection {$conn->resourceId} as {$role}\n";
-    $this->monitorFfmpegStderr($conn);
-}
-
-    private function monitorFfmpegStderr(ConnectionInterface $conn) {
-        $procData = $this->ffmpegProcesses[$conn->resourceId] ?? null;
-        if (!$procData) return;
-
-        $pipes = $procData["pipes"];
-        $stderr = $pipes[2];
-
-        // Non-blocking check in background
-        $loop = React\EventLoop\Factory::create();
-        $loop->addPeriodicTimer(0.5, function() use ($stderr) {
+    private function checkFfmpegStderr() {
+        foreach ($this->ffmpegProcesses as $connId => $procData) {
+            $stderr = $procData["pipes"][2];
             $output = stream_get_contents($stderr);
-            if ($output) echo "FFmpeg stderr: $output\n";
-        });
-        $loop->run();
+            if ($output) {
+                echo "FFmpeg ({$connId}) stderr: $output\n";
+            }
+        }
     }
 
     private function stopFfmpeg(ConnectionInterface $conn) {
