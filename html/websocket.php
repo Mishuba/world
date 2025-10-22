@@ -109,7 +109,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
              . escapeshellarg($output);
     } else {
         // Video+audio RTMP
-        $rtmpUrl = "rtmp://world.tsunamiflow.club/live/$streamKey";
+        $rtmpUrl = "rtmp://localhost/live/$streamKey";
         $cmd = "ffmpeg -fflags +nobuffer -flags low_delay -re -f webm -i pipe:0 "
              . "-c:v libx264 -preset veryfast -tune zerolatency "
              . "-c:a aac -ar 44100 -b:a 128k "
