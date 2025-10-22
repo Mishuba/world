@@ -96,39 +96,51 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     }
 
     private function startFfmpeg(ConnectionInterface $conn, $streamKey) {
-        $rtmpUrl = "rtmp://world.tsunamiflow.club/live/$streamKey";
+    $query = $conn->httpRequest->getUri()->getQuery();
+    parse_str($query, $params);
+    $role = $params["role"] ?? "broadcaster";
 
+    if ($role === "audio_only") {
+        // Audio-only HLS or RTMP
+        $output = "/var/www/html/live/$streamKey/audio.m3u8"; // HLS location
+        $cmd = "ffmpeg -fflags +nobuffer -flags low_delay -re -f webm -i pipe:0 "
+             . "-c:a aac -ar 44100 -b:a 128k "
+             . "-f hls -hls_time 2 -hls_list_size 3 -hls_flags delete_segments "
+             . escapeshellarg($output);
+    } else {
+        // Video+audio RTMP
+        $rtmpUrl = "rtmp://world.tsunamiflow.club/live/$streamKey";
         $cmd = "ffmpeg -fflags +nobuffer -flags low_delay -re -f webm -i pipe:0 "
              . "-c:v libx264 -preset veryfast -tune zerolatency "
-             . "-c:a aac -ar 44100 -b:a 128k -f flv " . escapeshellarg($rtmpUrl);
-
-        $spec = [
-            0 => ["pipe", "r"], // stdin
-            1 => ["pipe", "w"], // stdout
-            2 => ["pipe", "w"], // stderr
-        ];
-
-        $proc = proc_open($cmd, $spec, $pipes);
-        if (!is_resource($proc)) {
-            echo "❌ Failed to start FFmpeg for key {$streamKey}\n";
-            return;
-        }
-
-        // Set blocking to ensure FFmpeg receives all data
-        stream_set_blocking($pipes[0], true);
-        stream_set_blocking($pipes[2], false);
-
-        $this->ffmpegProcesses[$conn->resourceId] = [
-            "proc" => $proc,
-            "pipes" => $pipes,
-            "key" => $streamKey
-        ];
-
-        echo "🚀 FFmpeg started for connection {$conn->resourceId} → $rtmpUrl\n";
-
-        // Start async stderr logging
-        $this->monitorFfmpegStderr($conn);
+             . "-c:a aac -ar 44100 -b:a 128k "
+             . "-f flv " . escapeshellarg($rtmpUrl);
     }
+
+    $spec = [
+        0 => ["pipe", "r"], // stdin
+        1 => ["pipe", "w"], // stdout
+        2 => ["pipe", "w"], // stderr
+    ];
+
+    $proc = proc_open($cmd, $spec, $pipes);
+    if (!is_resource($proc)) {
+        echo "❌ Failed to start FFmpeg for key {$streamKey}\n";
+        return;
+    }
+
+    stream_set_blocking($pipes[0], true);
+    stream_set_blocking($pipes[2], false);
+
+    $this->ffmpegProcesses[$conn->resourceId] = [
+        "proc" => $proc,
+        "pipes" => $pipes,
+        "key" => $streamKey,
+        "role" => $role
+    ];
+
+    echo "🚀 FFmpeg started for connection {$conn->resourceId} as {$role}\n";
+    $this->monitorFfmpegStderr($conn);
+}
 
     private function monitorFfmpegStderr(ConnectionInterface $conn) {
         $procData = $this->ffmpegProcesses[$conn->resourceId] ?? null;
