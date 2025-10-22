@@ -9,46 +9,44 @@ use Ratchet\Server\IoServer;
 
 class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     protected $clients;
-    protected $ffmpegProcesses = []; // 🆕 Track ffmpeg pipes
+    protected $ffmpegProcesses = [];
 
     public function __construct() {
         $this->clients = new \SplObjectStorage;
-        echo "WebSocket server started ... \n";
+        echo "🌊 TsunamiFlow WebSocket server started...\n";
     }
 
     public function onOpen(ConnectionInterface $conn) {
         $this->clients->attach($conn);
-        echo "New connection: ({$conn->resourceId})\n";
+        echo "🟢 New connection: ({$conn->resourceId})\n";
 
         $conn->send(json_encode([
             "type" => "welcome",
-            "message" => "Connected to the dynamic WebSocket Server!"
+            "message" => "Connected to the TsunamiFlow WebSocket Server!"
         ]));
 
-        // 🆕 Get stream key from query string (optional)
+        // Parse ?key= from query string
         $query = $conn->httpRequest->getUri()->getQuery();
         parse_str($query, $params);
         $streamKey = $params["key"] ?? null;
 
         if ($streamKey) {
-            echo "Stream key detected: {$streamKey}\n";
+            echo "🔑 Stream key: {$streamKey}\n";
             $this->startFfmpeg($conn, $streamKey);
         }
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
-        // 🆕 Detect if it's binary WebM data from browser stream
-        if (!is_string($msg)) {
+        // Check if it's binary WebM data from the browser
+        if (!is_string($msg) || (strlen($msg) > 0 && strpos($msg[0], '{') !== 0)) {
             $this->handleBinaryStream($from, $msg);
             return;
         }
 
-        echo("Message from {$from->resourceId}: $msg\n");
+        echo("💬 Message from {$from->resourceId}: $msg\n");
         $data = json_decode($msg, true);
 
-        if (!is_array($data)) {
-            return; // Ignore malformed JSON
-        }
+        if (!is_array($data)) return;
 
         switch ($data["type"] ?? "") {
             case "chat":
@@ -59,8 +57,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
                         "type" => "chat",
                         "from" => $from->resourceId,
                         "message" => $message,
-                        "username" => $username,
-                        "error" => ""
+                        "username" => $username
                     ]));
                 }
                 break;
@@ -71,8 +68,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
                     $client->send(json_encode([
                         "type" => "start_game",
                         "from" => $from->resourceId,
-                        "message" => $message,
-                        "error" => ""
+                        "message" => $message
                     ]));
                 }
                 break;
@@ -83,31 +79,24 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
                     $client->send(json_encode([
                         "type" => "game",
                         "from" => $from->resourceId,
-                        "message" => $message,
-                        "error" => ""
+                        "message" => $message
                     ]));
                 }
                 break;
 
             case "signal":
-                // WebRTC signaling (not modified)
+                // WebRTC signaling placeholder
                 break;
 
-            // 🆕 Add a way to stop FFmpeg manually if needed
             case "stop_stream":
                 $this->stopFfmpeg($from);
-                break;
-
-            default:
-                // no-op
                 break;
         }
     }
 
-    // 🆕 Handle binary data from MediaRecorder
     private function handleBinaryStream(ConnectionInterface $conn, $binary) {
         if (!isset($this->ffmpegProcesses[$conn->resourceId])) {
-            echo "⚠️ Received binary data but no FFmpeg pipe open.\n";
+            echo "⚠️ Binary received but no active FFmpeg process.\n";
             return;
         }
 
@@ -117,60 +106,61 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
         }
     }
 
-    // 🆕 Start FFmpeg for this connection
     private function startFfmpeg(ConnectionInterface $conn, $streamKey) {
-        $rtmpUrl = "rtmp://tsunamiflow.club/live/" . escapeshellarg($streamKey);
-        $cmd = "ffmpeg -re -i - -c:v libx264 -preset veryfast -tune zerolatency "
-             . "-c:a aac -ar 44100 -b:a 128k -f flv {$rtmpUrl}";
+        // Change this RTMP target if needed
+        $rtmpUrl = "rtmp://world.tsunamiflow.club/live/$streamKey";
 
-        $descriptors = [
-            0 => ["pipe", "r"], // stdin (browser video/audio chunks)
-            1 => ["pipe", "w"], // stdout
+        $cmd = "ffmpeg -loglevel warning -fflags nobuffer -re -f webm -i pipe:0 "
+             . "-c:v libx264 -preset veryfast -tune zerolatency "
+             . "-c:a aac -ar 44100 -b:a 128k -f flv " . escapeshellarg($rtmpUrl);
+
+        $spec = [
+            0 => ["pipe", "r"], // stdin (input)
+            1 => ["pipe", "w"], // stdout (optional)
             2 => ["pipe", "w"], // stderr
         ];
 
-        $process = proc_open($cmd, $descriptors, $pipes);
-
-        if (is_resource($process)) {
+        $proc = proc_open($cmd, $spec, $pipes);
+        if (is_resource($proc)) {
             stream_set_blocking($pipes[0], false);
+            stream_set_blocking($pipes[2], false);
+
             $this->ffmpegProcesses[$conn->resourceId] = [
-                "proc" => $process,
+                "proc" => $proc,
                 "pipes" => $pipes,
                 "key" => $streamKey
             ];
-            echo "FFmpeg started for connection {$conn->resourceId} -> stream {$streamKey}\n";
+
+            echo "🚀 FFmpeg started for connection {$conn->resourceId} → $rtmpUrl\n";
         } else {
-            echo "❌ Failed to start FFmpeg for stream {$streamKey}\n";
+            echo "❌ Failed to start FFmpeg for key {$streamKey}\n";
         }
     }
 
-    // 🆕 Stop FFmpeg cleanly
     private function stopFfmpeg(ConnectionInterface $conn) {
-        if (!isset($this->ffmpegProcesses[$conn->resourceId])) {
-            return;
-        }
+        if (!isset($this->ffmpegProcesses[$conn->resourceId])) return;
 
         $procData = $this->ffmpegProcesses[$conn->resourceId];
         [$stdin, $stdout, $stderr] = $procData["pipes"];
 
-        fclose($stdin);
-        fclose($stdout);
-        fclose($stderr);
+        @fclose($stdin);
+        @fclose($stdout);
+        @fclose($stderr);
         proc_terminate($procData["proc"]);
 
         unset($this->ffmpegProcesses[$conn->resourceId]);
-        echo "FFmpeg stopped for connection {$conn->resourceId}\n";
+        echo "🛑 FFmpeg stopped for connection {$conn->resourceId}\n";
     }
 
     public function onClose(ConnectionInterface $conn) {
         $this->clients->detach($conn);
-        $this->stopFfmpeg($conn); // 🆕 stop process when client disconnects
-        echo "Connection {$conn->resourceId} closed\n";
+        $this->stopFfmpeg($conn);
+        echo "🔴 Connection {$conn->resourceId} closed\n";
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
-        echo "Error on connection {$conn->resourceId}: {$e->getMessage()}\n";
-        $this->stopFfmpeg($conn); // 🆕 ensure cleanup
+        echo "💥 Error on connection {$conn->resourceId}: {$e->getMessage()}\n";
+        $this->stopFfmpeg($conn);
         $conn->close();
     }
 }
