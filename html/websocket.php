@@ -1,4 +1,4 @@
-OB<?php
+<?php
 require __DIR__ . "/vendor/autoload.php";
 
 use Ratchet\MessageComponentInterface;
