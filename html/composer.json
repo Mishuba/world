@@ -1,12 +1,32 @@
 {
     "require": {
         "team-reflex/discord-php": "^10.5",
-        "tumblr/tumblr": "^0.4.2",
-        "abraham/twitteroauth": "^7.0",
         "facebook/graph-sdk": "^5.1",
-        "google/apiclient": "^2.18",
         "cboden/ratchet": "^0.4.4",
-        "stripe/stripe-php": "^17.2",
-        "printful/php-api-sdk": "^2.2"
+        "printful/php-api-sdk": "^2.2",
+        "stripe/stripe-php": "*",
+        "aws/aws-sdk-php": "^3.356",
+        "kreait/firebase-php": "*",
+        "google/apiclient": "*",
+        "docusign/esign-client": "^5.6",
+        "braintree/braintree_php": "*",
+        "tumblr/tumblr": "*",
+        "patreon/patreon": "*",
+        "google/apiclient-services": "^0.416.0",
+        "quickbooks/v3-php-sdk": "^6.2",
+        "square/square": "^43.1",
+        "microsoft/microsoft-graph": "^1.110",
+        "coderjerk/bird-elephant": "^0.7.1",
+        "abraham/twitteroauth": "^7.0",
+        "php-http/httplug": "^2.4",
+        "paypal/paypal-server-sdk": "^1.1",
+        "laminas/laminas-diactoros": "^3.8",
+        "facebook/php-business-sdk": "^23.0",
+        "cloudflare/sdk": "^1.4"
+    },
+    "config": {
+        "process-timeout": 2400
+    }
+}
     }
 }
