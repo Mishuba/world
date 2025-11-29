@@ -1,4 +1,8 @@
-<?php require "config.php"; ?>
+<?php 
+require "config.php"; 
+
+$wsUrl = getenv('Ec2Websocket') ?: 'wss://world.tsunamiflow.club';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -216,7 +220,10 @@ async function startBroadcast() {
         }
 
         finalStream = new MediaStream(finalTracks);
-        ws = new WebSocket("<?php echo getenv('Ec2Websocket'); ?>?key=" + encodeURIComponent(key));
+        
+
+ws = new WebSocket("<?= $wsUrl ?>?key=" + encodeURIComponent(key));
+
         ws.binaryType = "arraybuffer";
 
         ws.onopen = () => {
