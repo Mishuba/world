@@ -10,47 +10,17 @@ $wsUrl = getenv('Ec2Websocket') ?: 'wss://world.tsunamiflow.club';
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mishuba Live Broadcaster Console</title>
 <style>
-    body {
-        font-family: system-ui, sans-serif;
-        background: #0b0b0b;
-        color: #eee;
-        text-align: center;
-        padding: 20px;
-    }
-    video, audio {
-        margin: 10px;
-        border-radius: 10px;
-        background: #000;
-    }
-    input, button, select {
-        margin: 5px;
-        padding: 8px 12px;
-        border-radius: 8px;
-        border: none;
-        outline: none;
-    }
-    button {
-        background: #1a1a1a;
-        color: #fff;
-        cursor: pointer;
-        transition: 0.2s;
-    }
-    button:hover { background: #333; }
-    .section { margin-top: 20px; }
-    .soundboard button {
-        display: inline-block;
-        margin: 6px;
-        padding: 10px 14px;
-        border-radius: 10px;
-        border: 1px solid #333;
-    }
-    .soundboard button:hover { background: #333; }
-    .sliders { display: flex; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
-    .slider-group { margin: 10px; text-align: center; }
-    input[type=range] {
-        width: 150px;
-        cursor: pointer;
-    }
+    body { font-family: system-ui, sans-serif; background:#0b0b0b; color:#eee; text-align:center; padding:20px; }
+    video, audio { margin:10px; border-radius:10px; background:#000; }
+    input, button, select { margin:5px; padding:8px 12px; border-radius:8px; border:none; outline:none; }
+    button { background:#1a1a1a; color:#fff; cursor:pointer; transition:0.2s; }
+    button:hover { background:#333; }
+    .section { margin-top:20px; }
+    .soundboard button { display:inline-block; margin:6px; padding:10px 14px; border-radius:10px; border:1px solid #333; }
+    .soundboard button:hover { background:#333; }
+    .sliders { display:flex; justify-content:center; flex-wrap:wrap; margin-top:10px; }
+    .slider-group { margin:10px; text-align:center; }
+    input[type=range] { width:150px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -117,8 +87,10 @@ const playlist = document.getElementById("playlist");
 const fileInput = document.getElementById("fileInput");
 const soundButtons = document.querySelectorAll(".soundboard button");
 
-let ws, recorder, finalStream, audioCtx, mixedStream;
+let ws, recorder, finalStream;
+let audioCtx = new AudioContext();
 let micGain, musicGain, fxGain;
+let micStream;
 
 // 🎧 Preload sound effects
 const sounds = {
@@ -133,91 +105,74 @@ const sounds = {
     other: new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg")
 };
 
-// 📂 Playlist + Upload
-playlist.onchange = () => {
-    if (playlist.value) {
-        music.src = playlist.value;
-        music.play();
-    }
-};
-fileInput.onchange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        music.src = URL.createObjectURL(file);
-        music.play();
-    }
-};
-
-// 🎚 Volume Controls
-document.getElementById("micVol").oninput = e => micGain && (micGain.gain.value = e.target.value);
-document.getElementById("musicVol").oninput = e => musicGain && (musicGain.gain.value = e.target.value);
-document.getElementById("fxVol").oninput = e => fxGain && (fxGain.gain.value = e.target.value);
-
-// 🔊 Soundboard
-soundButtons.forEach(btn => {
-    btn.onclick = () => playEffect(btn.dataset.sound);
-});
-
-function playEffect(name) {
-    const s = sounds[name];
-    if (!s) return;
-    s.currentTime = 0;
-    s.play().catch(err => console.error(err));
-}
-
-
 // Pre-create sources
-const audioCtx = new AudioContext();
 const musicSource = audioCtx.createMediaElementSource(music);
 const fxSources = {};
 for (const key in sounds) {
     fxSources[key] = audioCtx.createMediaElementSource(sounds[key]);
 }
 
+// 🎚 Volume controls
+document.getElementById("micVol").oninput = e => micGain && (micGain.gain.value = e.target.value);
+document.getElementById("musicVol").oninput = e => musicGain && (musicGain.gain.value = e.target.value);
+document.getElementById("fxVol").oninput = e => fxGain && (fxGain.gain.value = e.target.value);
+
+// 🎶 Playlist + Upload
+playlist.onchange = () => { if (playlist.value) { music.src = playlist.value; music.play(); } };
+fileInput.onchange = e => { const file = e.target.files[0]; if(file){ music.src = URL.createObjectURL(file); music.play(); } };
+
+// 🔊 Soundboard
+soundButtons.forEach(btn => {
+    btn.onclick = () => {
+        const original = sounds[btn.dataset.sound];
+        if(!original) return;
+        const s = original.cloneNode(); // allows overlapping
+        s.play().catch(err => console.error(err));
+    };
+});
+
 // 🧠 Create Mixed Stream
 async function createMixedStream() {
+    if(audioCtx.state === 'suspended') await audioCtx.resume();
+
     const destination = audioCtx.createMediaStreamDestination();
 
     // Mic
-    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micStream = await navigator.mediaDevices.getUserMedia({ audio:true });
     const micSource = audioCtx.createMediaStreamSource(micStream);
-    micGain = audioCtx.createGain();
-    micGain.gain.value = document.getElementById("micVol").value;
+    micGain = audioCtx.createGain(); micGain.gain.value = document.getElementById("micVol").value;
     micSource.connect(micGain).connect(destination);
 
     // Music
-    if (musicToggle.checked) {
-        musicGain = audioCtx.createGain();
-        musicGain.gain.value = document.getElementById("musicVol").value;
+    if(musicToggle.checked){
+        musicGain = audioCtx.createGain(); musicGain.gain.value = document.getElementById("musicVol").value;
         musicSource.connect(musicGain).connect(destination);
-        musicSource.connect(audioCtx.destination);
+        musicSource.connect(audioCtx.destination); // local preview
     }
 
     // FX
-    fxGain = audioCtx.createGain();
-    fxGain.gain.value = document.getElementById("fxVol").value;
-    for (const key in fxSources) {
-    fxSources[key].connect(fxGain).connect(destination);
-    fxSources[key].connect(audioCtx.destination); // optional, if you want local playback
-}
+    fxGain = audioCtx.createGain(); fxGain.gain.value = document.getElementById("fxVol").value;
+    for(const key in fxSources){
+        fxSources[key].connect(fxGain).connect(destination);
+        fxSources[key].connect(audioCtx.destination);
+    }
 
-    mixedStream = destination.stream;
-    return mixedStream;
+    return destination.stream;
 }
 
 // 🚀 Start Broadcast
 async function startBroadcast() {
     const key = document.getElementById("streamKey").value.trim();
-    if (!key) return alert("Enter stream key");
+    if(!key) return alert("Enter stream key");
 
     startBtn.disabled = true;
 
     try {
         const mixed = await createMixedStream();
-
         let finalTracks = [];
-        if (videoToggle.checked) {
-            const camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+        if(videoToggle.checked){
+            const camStream = await navigator.mediaDevices.getUserMedia({video:true});
             preview.srcObject = camStream;
             finalTracks = [...camStream.getVideoTracks(), ...mixed.getAudioTracks()];
         } else {
@@ -226,51 +181,43 @@ async function startBroadcast() {
         }
 
         finalStream = new MediaStream(finalTracks);
-        
 
-ws = new WebSocket("<?= $wsUrl ?>?key=" + encodeURIComponent(key));
-
+        ws = new WebSocket("<?= $wsUrl ?>?key=" + encodeURIComponent(key));
         ws.binaryType = "arraybuffer";
 
         ws.onopen = () => {
-           const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus") 
-    ? "video/webm;codecs=vp8,opus" 
-    : "video/webm";
-            recorder = new MediaRecorder(finalStream, { mimeType: mime });
+            const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")
+                ? "video/webm;codecs=vp8,opus" : "video/webm";
 
-            recorder.ondataavailable = async (e) => {
-                if (e.data.size > 0 && ws.readyState === WebSocket.OPEN)
-                    ws.send(await e.data.arrayBuffer());
+            recorder = new MediaRecorder(finalStream, {mimeType:mime});
+            recorder.ondataavailable = async e => {
+                if(e.data.size>0 && ws.readyState===WebSocket.OPEN) ws.send(await e.data.arrayBuffer());
             };
-
-            recorder.onstart = () => {
-                stopBtn.disabled = false;
-                console.log("🎥 Streaming started");
-            };
-
+            recorder.onstart = () => stopBtn.disabled=false;
             recorder.start(videoToggle.checked ? 300 : 1000);
+            console.log("🎥 Streaming started");
         };
 
         ws.onclose = stopBroadcast;
         ws.onerror = err => console.error("WebSocket Error:", err);
 
-    } catch (err) {
+    } catch(err){
         console.error(err);
         alert("Media access denied or stream failed.");
-        startBtn.disabled = false;
+        startBtn.disabled=false;
     }
 }
 
 // 🛑 Stop Broadcast
 function stopBroadcast() {
-    stopBtn.disabled = true;
-    startBtn.disabled = false;
+    stopBtn.disabled = true; startBtn.disabled = false;
 
-    if (recorder && recorder.state !== "inactive") recorder.stop();
-    if (finalStream) finalStream.getTracks().forEach(t => t.stop());
-    if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+    if(recorder && recorder.state !== "inactive") recorder.stop();
+    if(finalStream) finalStream.getTracks().forEach(t => t.stop());
+    if(micStream) micStream.getTracks().forEach(t => t.stop());
+    if(ws && ws.readyState===WebSocket.OPEN) ws.close();
 
-    preview.srcObject = null;
+    preview.srcObject=null;
     console.log("🛑 Broadcast stopped");
 }
 
