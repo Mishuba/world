@@ -165,9 +165,17 @@ function playEffect(name) {
     s.play().catch(err => console.error(err));
 }
 
+
+// Pre-create sources
+const audioCtx = new AudioContext();
+const musicSource = audioCtx.createMediaElementSource(music);
+const fxSources = {};
+for (const key in sounds) {
+    fxSources[key] = audioCtx.createMediaElementSource(sounds[key]);
+}
+
 // 🧠 Create Mixed Stream
 async function createMixedStream() {
-    audioCtx = new AudioContext();
     const destination = audioCtx.createMediaStreamDestination();
 
     // Mic
@@ -179,7 +187,6 @@ async function createMixedStream() {
 
     // Music
     if (musicToggle.checked) {
-        const musicSource = audioCtx.createMediaElementSource(music);
         musicGain = audioCtx.createGain();
         musicGain.gain.value = document.getElementById("musicVol").value;
         musicSource.connect(musicGain).connect(destination);
