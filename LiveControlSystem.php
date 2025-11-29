@@ -234,7 +234,9 @@ ws = new WebSocket("<?= $wsUrl ?>?key=" + encodeURIComponent(key));
         ws.binaryType = "arraybuffer";
 
         ws.onopen = () => {
-            const mime = videoToggle.checked ? "video/webm;codecs=vp8,opus" : "audio/webm;codecs=opus";
+           const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus") 
+    ? "video/webm;codecs=vp8,opus" 
+    : "video/webm";
             recorder = new MediaRecorder(finalStream, { mimeType: mime });
 
             recorder.ondataavailable = async (e) => {
