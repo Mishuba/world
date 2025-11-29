@@ -196,11 +196,10 @@ async function createMixedStream() {
     // FX
     fxGain = audioCtx.createGain();
     fxGain.gain.value = document.getElementById("fxVol").value;
-    for (const key in sounds) {
-        const src = audioCtx.createMediaElementSource(sounds[key]);
-        src.connect(fxGain).connect(destination);
-        src.connect(audioCtx.destination);
-    }
+    for (const key in fxSources) {
+    fxSources[key].connect(fxGain).connect(destination);
+    fxSources[key].connect(audioCtx.destination); // optional, if you want local playback
+}
 
     mixedStream = destination.stream;
     return mixedStream;
