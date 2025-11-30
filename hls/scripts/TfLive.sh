@@ -14,9 +14,9 @@ echo "$(date) Starting FFmpeg restream for stream: $1" >> "$LOGFILE"
 
 # Run FFmpeg
 /usr/bin/ffmpeg -i "$INPUT_STREAM" \
-    -c:v copy -c:a copy -f flv "$TWITCH_URL" \
+  #  -c:v copy -c:a copy -f flv "$TWITCH_URL" \
     -c:v copy -c:a copy -f flv "$YOUTUBE_URL" \
-    -c:v copy -c:a copy -f flv "$INSTAGRAM_URL" \
+   # -c:v copy -c:a copy -f flv "$INSTAGRAM_URL" \
     >> "$LOGFILE" 2>&1
 
 echo "$(date) FFmpeg exited for stream: $1" >> "$LOGFILE"
