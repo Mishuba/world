@@ -1,7 +1,7 @@
 <?php 
 require "config.php"; 
 
-$wsUrl = getenv('Ec2Websocket') ?: 'wss://world.tsunamiflow.club';
+$wsUrl = getenv('Ec2Websocket') ?: 'wss://3.143.179.123:8080';
 ?>
 <!DOCTYPE html>
 <html lang="en">
