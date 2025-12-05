@@ -6,7 +6,7 @@ INPUT_STREAM="rtmp://localhost/live/$1"   # dynamic stream name from Nginx exec_
 LOGFILE="/var/log/ffmpeg-restream.log"
 
 # Targets
-# TWITCH_URL="rtmp://live.twitch.tv/app/$TWITCH_KEY"
+# TWITCH_URL="rtmp://live.twitch.tv/app/live166160210ZHhBDWe1EEdfcgna30jo7srMmhWIiF"
 YOUTUBE_URL="rtmp://a.rtmp.youtube.com/live2/3egr-4vfq-56yj-amtg-e7v1"
 # INSTAGRAM_URL="rtmp://rtmp.instagram.com:80/rtmp/$INSTAGRAM_KEY"
 
