@@ -146,6 +146,13 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
             $output = stream_get_contents($stderr);
             if ($output) {
                 echo "FFmpeg ({$connId}) stderr: $output\n";
+
+foreach ($this->clients as $client) {
+    $client->send(json_encode([
+        "type" => "ffmpeg_stderr",
+        "message" => trim($output)
+    ]));
+}
             }
         }
     }
