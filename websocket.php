@@ -6,6 +6,9 @@ use Ratchet\ConnectionInterface;
 use Ratchet\Http\HttpServer;
 use Ratchet\WebSocket\WsServer;
 use Ratchet\Server\IoServer;
+use React\EventLoop\Factory;
+use React\Socket\Server as SocketServer;
+use React\Socket\SecureServer;
 
 class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     protected $clients;
@@ -36,9 +39,8 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
-        $this->checkFfmpegStderr(); // log FFmpeg errors safely
+        $this->checkFfmpegStderr();
 
-        // Detect if message is binary
         if (!is_string($msg) || (strlen($msg) > 0 && strpos($msg[0], '{') !== 0)) {
             $this->handleBinaryStream($from, $msg);
             return;
@@ -102,7 +104,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
         $role = $params["role"] ?? "broadcaster";
 
         if ($role === "audio_only") {
-            $output = "/var/www/html/live/$streamKey/audio.m3u8"; // HLS location
+            $output = "/var/www/html/live/$streamKey/audio.m3u8";
             $cmd = "ffmpeg -fflags +nobuffer -flags low_delay -re -f webm -i pipe:0 "
                  . "-c:a aac -ar 44100 -b:a 128k "
                  . "-f hls -hls_time 2 -hls_list_size 3 -hls_flags delete_segments "
@@ -147,12 +149,12 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
             if ($output) {
                 echo "FFmpeg ({$connId}) stderr: $output\n";
 
-foreach ($this->clients as $client) {
-    $client->send(json_encode([
-        "type" => "ffmpeg_stderr",
-        "message" => trim($output)
-    ]));
-}
+                foreach ($this->clients as $client) {
+                    $client->send(json_encode([
+                        "type" => "ffmpeg_stderr",
+                        "message" => trim($output)
+                    ]));
+                }
             }
         }
     }
@@ -185,13 +187,17 @@ foreach ($this->clients as $client) {
     }
 }
 
-$server = IoServer::factory(
-    new HttpServer(
-        new WsServer(
-            new TsunamiFlowWebSocketServer()
-        )
-    ),
-    8080
-);
+// === TLS/WSS server setup ===
+$loop = Factory::create();
+$websocket = new WsServer(new TsunamiFlowWebSocketServer());
 
-$server->run();
+$socket = new SocketServer('0.0.0.0:8443', $loop);
+$secureSocket = new SecureServer($socket, $loop, [
+    'local_cert' => '/etc/letsencrypt/live/world.tsunamiflow.club/fullchain.pem',
+    'local_pk'   => '/etc/letsencrypt/live/world.tsunamiflow.club/privkey.pem',
+    'allow_self_signed' => false,
+    'verify_peer' => true
+]);
+
+$server = new IoServer(new HttpServer($websocket), $secureSocket, $loop);
+$loop->run();
