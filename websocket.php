@@ -12,7 +12,7 @@ use React\Socket\SecureServer;
 
 class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     protected $clients;
-    protected $ffmpegProcesses = [];
+    protected $ffmpeg = [];
 
     public function __construct() {
         $this->clients = new \SplObjectStorage;
@@ -25,21 +25,22 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
 
         $conn->send(json_encode([
             "type" => "welcome",
+            "id" => $conn->resourceId,
             "message" => "Connected to the TsunamiFlow WebSocket Server!"
         ]));
 
         $query = $conn->httpRequest->getUri()->getQuery();
         parse_str($query, $params);
         $streamKey = $params["key"] ?? null;
+        $role = $params['role'] ?? 'broadcaster';
 
         if ($streamKey) {
             echo "🔑 Stream key: {$streamKey}\n";
-            $this->startFfmpeg($conn, $streamKey);
+            $this->startFfmpeg($conn, $streamKey, $role);
         }
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
-        $this->checkFfmpegStderr();
 
         if (!is_string($msg) || (strlen($msg) > 0 && strpos($msg[0], '{') !== 0)) {
             $this->handleBinaryStream($from, $msg);
@@ -87,63 +88,63 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     }
 
     private function handleBinaryStream(ConnectionInterface $conn, $binary) {
-        if (!isset($this->ffmpegProcesses[$conn->resourceId])) {
+        if (!isset($this->ffmpeg[$conn->resourceId])) {
             echo "⚠️ Binary received but no active FFmpeg process.\n";
             return;
         }
 
-        $pipes = $this->ffmpegProcesses[$conn->resourceId]["pipes"];
+        $pipes = $this->ffmpeg[$conn->resourceId]["pipes"];
         if (is_resource($pipes[0])) {
             fwrite($pipes[0], $binary);
         }
     }
 
-    private function startFfmpeg(ConnectionInterface $conn, $streamKey) {
-        $query = $conn->httpRequest->getUri()->getQuery();
-        parse_str($query, $params);
-        $role = $params["role"] ?? "broadcaster";
+    private function startFfmpeg(ConnectionInterface $conn, $key, $role) {
+        $base = "/var/www/world/live/$key";
+        @mkdir($base, 0777, true);
 
         if ($role === "audio_only") {
-            $output = "/var/www/html/live/$streamKey/audio.m3u8";
-            $cmd = "ffmpeg -fflags +nobuffer -flags low_delay -re -f webm -i pipe:0 "
-                 . "-c:a aac -ar 44100 -b:a 128k "
-                 . "-f hls -hls_time 2 -hls_list_size 3 -hls_flags delete_segments "
-                 . escapeshellarg($output);
+            $cmd = "ffmpeg -loglevel error -f webm -i pipe:0 "
+                 . "-c:a aac -b:a 128k -ar 44100 "
+                 . "-f hls -hls_time 2 -hls_list_size 5 "
+                 . "$base/audio.m3u8";
         } else {
-            $rtmpUrl = "rtmp://localhost/live/$streamKey";
-            $cmd = "ffmpeg -fflags +nobuffer -flags low_delay -re -f webm -i pipe:0 "
+            $cmd = "ffmpeg -loglevel error -f webm -i pipe:0 "
                  . "-c:v libx264 -preset veryfast -tune zerolatency "
-                 . "-c:a aac -ar 44100 -b:a 128k "
-                 . "-f flv " . escapeshellarg($rtmpUrl);
+                 . "-c:a aac -f flv "
+                 . "rtmp://localhost/live/$key";
         }
 
         $spec = [
-            0 => ["pipe", "r"],
+            0 => ["pipe", "w"],
             1 => ["pipe", "w"],
             2 => ["pipe", "w"],
         ];
 
         $proc = proc_open($cmd, $spec, $pipes);
         if (!is_resource($proc)) {
-            echo "❌ Failed to start FFmpeg for key {$streamKey}\n";
+            echo "❌ Failed to start FFmpeg for key {$key}\n";
             return;
         }
 
-        stream_set_blocking($pipes[0], true);
+        stream_set_blocking($pipes[0], false);
+        stream_set_blocking($pipes[1], false);
         stream_set_blocking($pipes[2], false);
 
-        $this->ffmpegProcesses[$conn->resourceId] = [
+        $this->ffmpeg[$conn->resourceId] = [
             "proc" => $proc,
+            "stdin" => $pipes[0],
             "pipes" => $pipes,
-            "key" => $streamKey,
-            "role" => $role
+            "key" => $key,
+            "role" => $role,
+            "err" => $pipes[2]
         ];
 
         echo "🚀 FFmpeg started for connection {$conn->resourceId} as {$role}\n";
     }
 
     private function checkFfmpegStderr() {
-        foreach ($this->ffmpegProcesses as $connId => $procData) {
+        foreach ($this->ffmpeg as $connId => $procData) {
             $stderr = $procData["pipes"][2];
             $output = stream_get_contents($stderr);
             if ($output) {
@@ -160,9 +161,10 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     }
 
     private function stopFfmpeg(ConnectionInterface $conn) {
-        if (!isset($this->ffmpegProcesses[$conn->resourceId])) return;
-
-        $procData = $this->ffmpegProcesses[$conn->resourceId];
+        if (!isset($this->ffmpeg[$conn->resourceId])) return;
+        
+    
+        $procData = $this->ffmpeg[$conn->resourceId];
         [$stdin, $stdout, $stderr] = $procData["pipes"];
 
         @fclose($stdin);
@@ -170,7 +172,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
         @fclose($stderr);
         proc_terminate($procData["proc"]);
 
-        unset($this->ffmpegProcesses[$conn->resourceId]);
+        unset($this->ffmpeg[$conn->resourceId]);
         echo "🛑 FFmpeg stopped for connection {$conn->resourceId}\n";
     }
 
@@ -189,15 +191,21 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
 
 // === TLS/WSS server setup ===
 $loop = Factory::create();
-$websocket = new WsServer(new TsunamiFlowWebSocketServer());
+//$websocket = new WsServer(new TsunamiFlowWebSocketServer());
+
+$TfServer = new TsunamiFlowWebSocketServer();
+$loop->addPeriodicTimer(0.5, function() use ($TfServer) {
+    $TfServer->checkFfmpegStderr();
+});
 
 $socket = new SocketServer('0.0.0.0:8443', $loop);
 $secureSocket = new SecureServer($socket, $loop, [
     'local_cert' => '/etc/letsencrypt/live/world.tsunamiflow.club/fullchain.pem',
     'local_pk'   => '/etc/letsencrypt/live/world.tsunamiflow.club/privkey.pem',
     'allow_self_signed' => false,
-    'verify_peer' => true
+    'verify_peer' => false
 ]);
 
-$server = new IoServer(new HttpServer($websocket), $secureSocket, $loop);
+new IoServer(new HttpServer(new WsServer($TfServer)), $secureSocket, $loop);
 $loop->run();
+?>
