@@ -61,13 +61,19 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
                 break;
 
             case 'signal':
-                // WebRTC signaling (offer / answer / ice)
-                $this->broadcast([
-                    'type' => 'signal',
-                    'from' => $from->resourceId,
-                    'data' => $data['data'] ?? null
-                ], $from);
-                break;
+    if (!$from->meta['key']) return;
+
+    foreach ($this->clients as $client) {
+        if ($client === $from) continue;
+        if ($client->meta['key'] !== $from->meta['key']) continue;
+
+        $client->send(json_encode([
+            'type' => 'signal',
+            'from' => $from->resourceId,
+            'data' => $data['data']
+        ]));
+    }
+    break;
 
             case 'start_stream':
                 echo "🚀 Stream requested by {$from->resourceId}\n";
