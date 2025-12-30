@@ -1,18 +1,40 @@
 <?php
-$streamKey = $_POST['key'] ?? 'default';
-$chunk = $_FILES['chunk']['tmp_name'] ?? null;
+// ingest.php
 
-if (!$chunk) { http_response_code(400); exit("No chunk uploaded."); }
+$key = preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['key'] ?? '');
+if (!$key) {
+    http_response_code(400);
+    exit('Missing key');
+}
 
-// Push incoming WebM chunk to RTMP & HLS
-$cmd = sprintf(
-    '/usr/bin/ffmpeg -re -i %s -c:v copy -c:a aac -f flv rtmp://3.143.179.123:1935/live/%s',
-    escapeshellarg($chunk),
-    escapeshellarg($streamKey)
-);
+$pipe = "/tmp/stream_{$key}.pipe";
+$flag = "/tmp/stream_{$key}.running";
 
-// Run in background (non-blocking)
-exec($cmd . " > /dev/null 2>&1 &");
+/*
+  Start FFmpeg only once per stream
+*/
+if (!file_exists($flag)) {
+    if (!file_exists($pipe)) {
+        posix_mkfifo($pipe, 0666);
+    }
 
-echo "Chunk forwarded to RTMP";
-?>
+    file_put_contents($flag, time());
+
+    // fire-and-forget ffmpeg
+    exec("/var/www/world/live/hls/ffmpeg.sh {$key} > /dev/null 2>&1 &");
+}
+
+/*
+  Write chunk into FIFO
+*/
+$in  = fopen("php://input", "rb");
+$out = fopen($pipe, "ab");
+
+if ($in && $out) {
+    stream_copy_to_stream($in, $out);
+}
+
+fclose($in);
+fclose($out);
+
+http_response_code(204);
