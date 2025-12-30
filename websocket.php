@@ -133,7 +133,7 @@ if ($msg[0] !== '{') {
         echo "🚀 FFmpeg started for connection {$conn->resourceId} as {$role}\n";
     }
 
-    private function checkFfmpegStderr() {
+    public function checkFfmpegStderr() {
         foreach ($this->ffmpeg as $connId => $procData) {
             $output = stream_get_contents($procData["pipes"][2]);
             if ($output) {
@@ -148,7 +148,7 @@ if ($msg[0] !== '{') {
         }
     }
 
-    private function stopFfmpeg(ConnectionInterface $conn) {
+    public function stopFfmpeg(ConnectionInterface $conn) {
         if (!isset($this->ffmpeg[$conn->resourceId])) return;
 
         $procData = $this->ffmpeg[$conn->resourceId];
