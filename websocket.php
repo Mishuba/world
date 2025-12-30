@@ -41,10 +41,14 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
-        if (!is_string($msg) || (strlen($msg) > 0 && strpos($msg[0], '{') !== 0)) {
-            $this->handleBinaryStream($from, $msg);
-            return;
-        }
+        if (!is_string($msg)) {
+  $this->handleBinaryStream($from, $msg);
+  return;
+}
+
+if ($msg[0] !== '{') {
+  return; // ignore non-JSON text
+}
 
         $data = json_decode($msg, true);
         if (!is_array($data)) return;
@@ -109,6 +113,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
         ];
 
         $proc = proc_open($cmd, $spec, $pipes);
+        stream_set_blocking($pipes[2], false);
         if (!is_resource($proc)) {
             echo "❌ Failed to start FFmpeg for key {$key}\n";
             return;
