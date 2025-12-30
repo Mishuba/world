@@ -111,7 +111,7 @@ $loop = Factory::create();
   - NGINX TERMINATES SSL
   - THIS IS PLAIN WS
 */
-$socket = new SocketServer('0.0.0.0:8080', $loop);
+$socket = new SocketServer('127.0.0.1:8443', $loop);
 
 new IoServer(
     new HttpServer(new WsServer(new TsunamiFlowWebSocketServer())),
