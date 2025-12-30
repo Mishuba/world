@@ -182,7 +182,7 @@ $loop->addPeriodicTimer(0.5, function() use ($TfServer) {
 });
 
 // Bind to TLS port
-$socket = new SocketServer('0.0.0.0:8443', $loop);
+$socket = new SocketServer('[::]:8443', $loop);
 $secureSocket = new SecureServer($socket, $loop, [
     'local_cert' => '/etc/letsencrypt/live/world.tsunamiflow.club/fullchain.pem',
     'local_pk'   => '/etc/letsencrypt/live/world.tsunamiflow.club/privkey.pem',
