@@ -8,187 +8,115 @@ use Ratchet\WebSocket\WsServer;
 use Ratchet\Server\IoServer;
 use React\EventLoop\Factory;
 use React\Socket\Server as SocketServer;
-use React\Socket\SecureServer;
 
 class TsunamiFlowWebSocketServer implements MessageComponentInterface {
-    protected $clients;
-    protected $ffmpeg = [];
+
+    protected \SplObjectStorage $clients;
 
     public function __construct() {
-        $this->clients = new \SplObjectStorage;
-        echo "🌊 TsunamiFlow WebSocket server started...\n";
+        $this->clients = new \SplObjectStorage();
+        echo "🌊 TsunamiFlow WebSocket CONTROL server started\n";
     }
 
     public function onOpen(ConnectionInterface $conn) {
         $this->clients->attach($conn);
-        echo "🟢 New connection: ({$conn->resourceId})\n";
-
-        $conn->send(json_encode([
-            "type" => "welcome",
-            "id" => $conn->resourceId,
-            "message" => "Connected to the TsunamiFlow WebSocket Server!"
-        ]));
 
         $query = $conn->httpRequest->getUri()->getQuery();
         parse_str($query, $params);
-        $streamKey = $params["key"] ?? null;
-        $role = $params['role'] ?? 'broadcaster';
 
-        if ($streamKey) {
-            echo "🔑 Stream key: {$streamKey}\n";
-            $this->startFfmpeg($conn, $streamKey, $role);
-        }
+        $conn->meta = [
+            'role' => $params['role'] ?? 'viewer',
+            'key'  => $params['key']  ?? null
+        ];
+
+        echo "🟢 Connection {$conn->resourceId} ({$conn->meta['role']})\n";
+
+        $conn->send(json_encode([
+            'type' => 'welcome',
+            'id'   => $conn->resourceId,
+            'role' => $conn->meta['role']
+        ]));
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
         if (!is_string($msg)) {
-  $this->handleBinaryStream($from, $msg);
-  return;
-}
-
-if ($msg[0] !== '{') {
-  return; // ignore non-JSON text
-}
+            // HARD RULE: no binary over WebSocket
+            return;
+        }
 
         $data = json_decode($msg, true);
-        if (!is_array($data)) return;
-
-        switch ($data["type"] ?? "") {
-            case "chat":
-                foreach ($this->clients as $client) {
-                    $client->send(json_encode([
-                        "type" => "chat",
-                        "from" => $from->resourceId,
-                        "message" => $data["message"] ?? "",
-                        "username" => $data["username"] ?? ""
-                    ]));
-                }
-                break;
-
-            case "start_game":
-            case "game":
-                foreach ($this->clients as $client) {
-                    $client->send(json_encode([
-                        "type" => $data["type"],
-                        "from" => $from->resourceId,
-                        "message" => $data["message"] ?? ""
-                    ]));
-                }
-                break;
-
-            case "signal":
-                // WebRTC signaling placeholder
-                break;
-
-            case "stop_stream":
-                $this->stopFfmpeg($from);
-                break;
-        }
-    }
-
-    private function handleBinaryStream(ConnectionInterface $conn, $binary) {
-        if (!isset($this->ffmpeg[$conn->resourceId])) {
-            echo "⚠️ Binary received but no active FFmpeg process.\n";
+        if (!is_array($data) || !isset($data['type'])) {
             return;
         }
 
-        $pipes = $this->ffmpeg[$conn->resourceId]["pipes"];
-        if (is_resource($pipes[0])) {
-            fwrite($pipes[0], $binary);
+        switch ($data['type']) {
+
+            case 'chat':
+                $this->broadcast([
+                    'type'     => 'chat',
+                    'from'     => $from->resourceId,
+                    'username' => $data['username'] ?? 'anon',
+                    'message'  => $data['message'] ?? ''
+                ]);
+                break;
+
+            case 'signal':
+                // WebRTC signaling (offer / answer / ice)
+                $this->broadcast([
+                    'type' => 'signal',
+                    'from' => $from->resourceId,
+                    'data' => $data['data'] ?? null
+                ], $from);
+                break;
+
+            case 'start_stream':
+                echo "🚀 Stream requested by {$from->resourceId}\n";
+                // You trigger FFmpeg / RTMP / WHIP OUTSIDE this process
+                break;
+
+            case 'stop_stream':
+                echo "🛑 Stream stop requested by {$from->resourceId}\n";
+                break;
         }
     }
 
-    private function startFfmpeg(ConnectionInterface $conn, $key, $role) {
-        $base = "/var/www/world/live/$key";
-        @mkdir($base, 0777, true);
-
-        $cmd = $role === "audio_only"
-            ? "ffmpeg -loglevel error -f webm -i pipe:0 -c:a aac -b:a 128k -ar 44100 -f hls -hls_time 2 -hls_list_size 5 $base/audio.m3u8"
-            : "ffmpeg -loglevel error -f webm -i pipe:0 -c:v libx264 -preset veryfast -tune zerolatency -c:a aac -f flv rtmp://localhost/live/$key";
-
-        $spec = [
-            0 => ["pipe", "w"],
-            1 => ["pipe", "w"],
-            2 => ["pipe", "w"],
-        ];
-
-        $proc = proc_open($cmd, $spec, $pipes);
-        stream_set_blocking($pipes[2], false);
-        if (!is_resource($proc)) {
-            echo "❌ Failed to start FFmpeg for key {$key}\n";
-            return;
+    protected function broadcast(array $payload, ?ConnectionInterface $exclude = null) {
+        $json = json_encode($payload);
+        foreach ($this->clients as $client) {
+            if ($exclude && $client === $exclude) continue;
+            $client->send($json);
         }
-
-        foreach ($pipes as $p) stream_set_blocking($p, false);
-
-        $this->ffmpeg[$conn->resourceId] = [
-            "proc" => $proc,
-            "stdin" => $pipes[0],
-            "pipes" => $pipes,
-            "key" => $key,
-            "role" => $role,
-            "err" => $pipes[2]
-        ];
-
-        echo "🚀 FFmpeg started for connection {$conn->resourceId} as {$role}\n";
-    }
-
-    public function checkFfmpegStderr() {
-        foreach ($this->ffmpeg as $connId => $procData) {
-            $output = stream_get_contents($procData["pipes"][2]);
-            if ($output) {
-                echo "FFmpeg ({$connId}) stderr: $output\n";
-                foreach ($this->clients as $client) {
-                    $client->send(json_encode([
-                        "type" => "ffmpeg_stderr",
-                        "message" => trim($output)
-                    ]));
-                }
-            }
-        }
-    }
-
-    public function stopFfmpeg(ConnectionInterface $conn) {
-        if (!isset($this->ffmpeg[$conn->resourceId])) return;
-
-        $procData = $this->ffmpeg[$conn->resourceId];
-        foreach ($procData["pipes"] as $p) @fclose($p);
-        proc_terminate($procData["proc"]);
-
-        unset($this->ffmpeg[$conn->resourceId]);
-        echo "🛑 FFmpeg stopped for connection {$conn->resourceId}\n";
     }
 
     public function onClose(ConnectionInterface $conn) {
         $this->clients->detach($conn);
-        $this->stopFfmpeg($conn);
         echo "🔴 Connection {$conn->resourceId} closed\n";
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
-        echo "💥 Error on connection {$conn->resourceId}: {$e->getMessage()}\n";
-        $this->stopFfmpeg($conn);
+        echo "💥 Error {$conn->resourceId}: {$e->getMessage()}\n";
         $conn->close();
     }
 }
 
-// === WSS server setup ===
+/* ============================= */
+/* ===== SERVER BOOTSTRAP ===== */
+/* ============================= */
+
 $loop = Factory::create();
-$TfServer = new TsunamiFlowWebSocketServer();
 
-// Periodic check for FFmpeg stderr
-$loop->addPeriodicTimer(0.5, function() use ($TfServer) {
-    $TfServer->checkFfmpegStderr();
-});
+/*
+  IMPORTANT:
+  - NO TLS HERE
+  - NGINX TERMINATES SSL
+  - THIS IS PLAIN WS
+*/
+$socket = new SocketServer('0.0.0.0:8080', $loop);
 
-// Bind to TLS port
-$socket = new SocketServer('[::]:8443', $loop);
-$secureSocket = new SecureServer($socket, $loop, [
-    'local_cert' => '/etc/letsencrypt/live/world.tsunamiflow.club/fullchain.pem',
-    'local_pk'   => '/etc/letsencrypt/live/world.tsunamiflow.club/privkey.pem',
-    'allow_self_signed' => false,
-    'verify_peer' => false
-]);
+new IoServer(
+    new HttpServer(new WsServer(new TsunamiFlowWebSocketServer())),
+    $socket,
+    $loop
+);
 
-new IoServer(new HttpServer(new WsServer($TfServer)), $secureSocket, $loop);
 $loop->run();
