@@ -41,38 +41,33 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
-
         if (!is_string($msg) || (strlen($msg) > 0 && strpos($msg[0], '{') !== 0)) {
             $this->handleBinaryStream($from, $msg);
             return;
         }
 
-        echo("💬 Message from {$from->resourceId}: $msg\n");
         $data = json_decode($msg, true);
         if (!is_array($data)) return;
 
         switch ($data["type"] ?? "") {
             case "chat":
-                $message = $data["message"];
-                $username = $data["username"];
                 foreach ($this->clients as $client) {
                     $client->send(json_encode([
                         "type" => "chat",
                         "from" => $from->resourceId,
-                        "message" => $message,
-                        "username" => $username
+                        "message" => $data["message"] ?? "",
+                        "username" => $data["username"] ?? ""
                     ]));
                 }
                 break;
 
             case "start_game":
             case "game":
-                $message = $data["message"];
                 foreach ($this->clients as $client) {
                     $client->send(json_encode([
                         "type" => $data["type"],
                         "from" => $from->resourceId,
-                        "message" => $message
+                        "message" => $data["message"] ?? ""
                     ]));
                 }
                 break;
@@ -103,17 +98,9 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
         $base = "/var/www/world/live/$key";
         @mkdir($base, 0777, true);
 
-        if ($role === "audio_only") {
-            $cmd = "ffmpeg -loglevel error -f webm -i pipe:0 "
-                 . "-c:a aac -b:a 128k -ar 44100 "
-                 . "-f hls -hls_time 2 -hls_list_size 5 "
-                 . "$base/audio.m3u8";
-        } else {
-            $cmd = "ffmpeg -loglevel error -f webm -i pipe:0 "
-                 . "-c:v libx264 -preset veryfast -tune zerolatency "
-                 . "-c:a aac -f flv "
-                 . "rtmp://localhost/live/$key";
-        }
+        $cmd = $role === "audio_only"
+            ? "ffmpeg -loglevel error -f webm -i pipe:0 -c:a aac -b:a 128k -ar 44100 -f hls -hls_time 2 -hls_list_size 5 $base/audio.m3u8"
+            : "ffmpeg -loglevel error -f webm -i pipe:0 -c:v libx264 -preset veryfast -tune zerolatency -c:a aac -f flv rtmp://localhost/live/$key";
 
         $spec = [
             0 => ["pipe", "w"],
@@ -127,9 +114,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
             return;
         }
 
-        stream_set_blocking($pipes[0], false);
-        stream_set_blocking($pipes[1], false);
-        stream_set_blocking($pipes[2], false);
+        foreach ($pipes as $p) stream_set_blocking($p, false);
 
         $this->ffmpeg[$conn->resourceId] = [
             "proc" => $proc,
@@ -145,11 +130,9 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
 
     private function checkFfmpegStderr() {
         foreach ($this->ffmpeg as $connId => $procData) {
-            $stderr = $procData["pipes"][2];
-            $output = stream_get_contents($stderr);
+            $output = stream_get_contents($procData["pipes"][2]);
             if ($output) {
                 echo "FFmpeg ({$connId}) stderr: $output\n";
-
                 foreach ($this->clients as $client) {
                     $client->send(json_encode([
                         "type" => "ffmpeg_stderr",
@@ -162,14 +145,9 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
 
     private function stopFfmpeg(ConnectionInterface $conn) {
         if (!isset($this->ffmpeg[$conn->resourceId])) return;
-        
-    
-        $procData = $this->ffmpeg[$conn->resourceId];
-        [$stdin, $stdout, $stderr] = $procData["pipes"];
 
-        @fclose($stdin);
-        @fclose($stdout);
-        @fclose($stderr);
+        $procData = $this->ffmpeg[$conn->resourceId];
+        foreach ($procData["pipes"] as $p) @fclose($p);
         proc_terminate($procData["proc"]);
 
         unset($this->ffmpeg[$conn->resourceId]);
@@ -189,15 +167,16 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     }
 }
 
-// === TLS/WSS server setup ===
+// === WSS server setup ===
 $loop = Factory::create();
-//$websocket = new WsServer(new TsunamiFlowWebSocketServer());
-
 $TfServer = new TsunamiFlowWebSocketServer();
+
+// Periodic check for FFmpeg stderr
 $loop->addPeriodicTimer(0.5, function() use ($TfServer) {
     $TfServer->checkFfmpegStderr();
 });
 
+// Bind to TLS port
 $socket = new SocketServer('0.0.0.0:8443', $loop);
 $secureSocket = new SecureServer($socket, $loop, [
     'local_cert' => '/etc/letsencrypt/live/world.tsunamiflow.club/fullchain.pem',
@@ -208,4 +187,3 @@ $secureSocket = new SecureServer($socket, $loop, [
 
 new IoServer(new HttpServer(new WsServer($TfServer)), $secureSocket, $loop);
 $loop->run();
-?>
