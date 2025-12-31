@@ -19,6 +19,12 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     }
 
     public function onOpen(ConnectionInterface $conn) {
+$origin = $conn->httpRequest->getHeader('Origin')[0] ?? '';
+
+    if ($origin !== 'https://tsunamiflow.club') {
+        $conn->close();
+        return;
+    }
         $this->clients->attach($conn);
 
         $query = $conn->httpRequest->getUri()->getQuery();
