@@ -1,4 +1,8 @@
 <?php
+header("Access-Control-Allow-Origin: https://tsunamiflow.club");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+
 $streamKey = preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['key'] ?? '');
 
 if (!$streamKey) {
