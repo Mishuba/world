@@ -1,4 +1,16 @@
 <?php
+<?php
+header("Access-Control-Allow-Origin: https://tsunamiflow.club");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, X-Requested-With, Authorization");
+header("Access-Control-Allow-Credentials: true");
+
+// Handle preflight
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 // Debug toggle (set environment variable DEBUG=1 to show PHP errors)
 //$DEBUG = getenv('DEBUG') === '1';
 //ini_set('display_errors', $DEBUG ? '1' : '0');
