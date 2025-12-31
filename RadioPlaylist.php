@@ -3,6 +3,8 @@ header("Access-Control-Allow-Origin: https://tsunamiflow.club");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, X-Requested-With, X-Request-Type, Authorization");
 header("Access-Control-Allow-Credentials: true");
+header("Cache-Control: public, max-age=300");
+header("Vary: Origin");
 
 // Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -153,11 +155,11 @@ foreach ($Objects as $page) {
                 if (!isset($array[$index][$index2]) || !is_array($array[$index][$index2])) {
                     $array[$index][$index2] = [];
                 }
-                $array[$index][$index2][] = "https://www.tsunamiflow.club/" . $decodedKey;
+                $array[$index][$index2][] = "https://radio.tsunamiflow.club/" . $decodedKey;
             } else {
-                $array[$index][] = "https://www.tsunamiflow.club/" . $decodedKey;
+                $array[$index][] = "https://radio.tsunamiflow.club/" . $decodedKey;
             }
-            $array[11][] = "https://www.tsunamiflow.club/" . $decodedKey;
+            $array[11][] = "https://radio.tsunamiflow.club/" . $decodedKey;
         }
     }
         } catch (AwsException $e) {
