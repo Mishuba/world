@@ -51,19 +51,6 @@ $cacheFile = $cacheDir . '/radioCache.json';
 $cacheLock = $cacheDir . '/radioCache.lock';
 
 $lockHandle = fopen($cacheLock, 'c');
-
-if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
-    if (file_exists($cacheFile)) {
-        echo file_get_contents($cacheFile);
-        exit;
-    }
-
-    http_response_code(503);
-    echo json_encode(["error" => "Cache is being built"]);
-    exit;
-}
-
-$lockHandle = fopen($cacheLock, 'c');
 if (!flock($lockHandle, LOCK_EX | LOCK_NB)) {
     if (file_exists($cacheFile)) {
         echo file_get_contents($cacheFile);
