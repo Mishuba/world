@@ -50,6 +50,10 @@ if (!is_dir($cacheDir)) mkdir($cacheDir, 0700, true);
 $cacheFile = $cacheDir . '/radioCache.json';
 $cacheLock = $cacheDir . '/radioCache.lock';
 
+$lockHandle = fopen($cacheLock, 'c');
+
+if (!flock($lockHandle, LOCK_EX | LOCK_NB)) {
+
 if (file_exists($cacheFile) && time() - filemtime($cacheFile) < 3600) {
     echo file_get_contents($cacheFile);
     exit;
@@ -64,7 +68,7 @@ if (file_exists($cacheLock) && time() - filemtime($cacheLock) < 60) {
     echo json_encode(["error" => "Cache is being built"]);
     exit;
 }
-
+}
 $lockHandle = fopen($cacheLock, 'c');
 if (!flock($lockHandle, LOCK_EX | LOCK_NB)) {
     if (file_exists($cacheFile)) {
