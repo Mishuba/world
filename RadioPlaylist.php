@@ -34,7 +34,11 @@ use Aws\S3\S3Client;
 header("Content-Type: application/json; charset=utf-8");
 
 // Ensure request type
-if (!isset($_SERVER["HTTP_X_REQUEST_TYPE"]) || $_SERVER["HTTP_X_REQUEST_TYPE"] !== "fetchRadioSongs") {
+$requestType =
+    $_SERVER['HTTP_X_REQUEST_TYPE']
+    ?? ($_GET['type'] ?? null);
+
+if ($requestType !== 'fetchRadioSongs') {
     http_response_code(400);
     echo json_encode(["error" => "Invalid Request Type"]);
     exit;
