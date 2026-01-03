@@ -9,40 +9,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 // ingest.php
 
-$key = preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['key'] ?? '');
-if (!$key) {
+<?php
+// mishubaRestream.php
+// Usage: call via browser or curl with ?key=STREAM_KEY
+
+$streamKey = $_GET['key'] ?? null;
+
+if (!$streamKey) {
     http_response_code(400);
-    exit('Missing key');
+    echo "Missing stream key";
+    exit;
 }
 
-$pipe = "/tmp/stream_{$key}.pipe";
-$flag = "/tmp/stream_{$key}.running";
+// Sanitize the stream key
+$streamKey = preg_replace('/[^a-zA-Z0-9_-]/', '', $streamKey);
 
-/*
-  Start FFmpeg only once per stream
-*/
-if (!file_exists($flag)) {
-    if (!file_exists($pipe)) {
-        posix_mkfifo($pipe, 0666);
-    }
+// Path to your bash script
+$scriptPath = '/usr/local/bin/ffmpeg-restream.sh';
 
-    file_put_contents($flag, time());
+// Run the script asynchronously so PHP doesn't wait for FFmpeg to finish
+$cmd = escapeshellcmd("$scriptPath $streamKey") . " > /dev/null 2>&1 &";
+exec($cmd);
 
-    // fire-and-forget ffmpeg
-    exec("/var/www/world/live/hls/ffmpeg.sh {$key} > /dev/null 2>&1 &");
-}
-
-/*
-  Write chunk into FIFO
-*/
-$in  = fopen("php://input", "rb");
-$out = fopen($pipe, "ab");
-
-if ($in && $out) {
-    stream_copy_to_stream($in, $out);
-}
-
-fclose($in);
-fclose($out);
+echo "Restream started for stream key: $streamKey";
 
 http_response_code(204);
