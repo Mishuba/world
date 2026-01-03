@@ -1,5 +1,13 @@
 <?php
-header("Access-Control-Allow-Origin: https://tsunamiflow.club");
+$allowed = [
+    'https://tsunamiflow.club',
+    'https://www.tsunamiflow.club',
+    'https://world.tsunamiflow.club'
+];
+
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed, true)) {
+    header("Access-Control-Allow-Origin: ".$_SERVER['HTTP_ORIGIN']);
+}
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, X-Requested-With, X-Request-Type, Authorization");
 header("Access-Control-Allow-Credentials: true");
