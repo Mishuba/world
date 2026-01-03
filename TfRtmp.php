@@ -24,7 +24,7 @@ if (!$streamKey) {
 $streamKey = preg_replace('/[^a-zA-Z0-9_-]/', '', $streamKey);
 
 // Path to your bash script
-$scriptPath = '/usr/local/bin/ffmpeg-restream.sh';
+$scriptPath = '/var/www/world/hls/scripts/ffmpeg-restream.sh';
 
 // Run the script asynchronously so PHP doesn't wait for FFmpeg to finish
 $cmd = escapeshellcmd("$scriptPath $streamKey") . " > /dev/null 2>&1 &";
