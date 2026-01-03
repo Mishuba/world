@@ -316,7 +316,6 @@ addSongsToArray("Music/Outside/", $sentToJsArray, 23, null, $s3, $bucketName);
 $sentToJsArray[11] = array_values(array_unique($sentToJsArray[11]));
 $TsunamiFlowRadio = json_encode($sentToJsArray, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE | JSON_UNESCAPED_SLASHES);
 
-// Write cache first (safe write)
 $tmpFile = $cacheFile . '.tmp';
 file_put_contents($tmpFile, $TsunamiFlowRadio);
 
@@ -324,8 +323,14 @@ if (!rename($tmpFile, $cacheFile)) {
     error_log("Failed to rename cache file");
 }
 
-@unlink($cacheLock);
+/* -------------------------
+   RELEASE THE LOCK HERE
+   ------------------------- */
+flock($lockHandle, LOCK_UN);
+fclose($lockHandle);
 
-// Output once
+/* -------------------------
+   RESPONSE
+   ------------------------- */
 echo $TsunamiFlowRadio;
 exit;
