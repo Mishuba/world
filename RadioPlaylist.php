@@ -52,16 +52,16 @@ if (file_exists($cacheFile) && time() - filemtime($cacheFile) < 144000) {
 }
 
 if (file_exists($cacheLock) && time() - filemtime($cacheLock) < 60) {
-    // Another process is likely building cache, return old data if available
     if (file_exists($cacheFile)) {
-          echo file_get_contents($cacheFile);
+        echo file_get_contents($cacheFile);
+        exit;
+    }
+    http_response_code(503);
+    echo json_encode(["error" => "Cache is being built"]);
     exit;
-   } else {
-          $cacheFile = $cacheDir . '/radioCache.json';
-   }
 }
-touch($cacheLock);
 
+file_put_contents($cacheLock, getmypid());
 
 // --- Your category array (kept same shape) ---
 $sentToJsArray = array(
