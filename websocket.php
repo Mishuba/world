@@ -89,6 +89,20 @@ $origin = $conn->httpRequest->getHeader('Origin')[0] ?? '';
             case 'stop_stream':
                 echo "🛑 Stream stop requested by {$from->resourceId}\n";
                 break;
+
+case 'stream_chunk':
+    $streamKey = $from->meta['key'];
+    if (!$streamKey) return;
+
+    $socketFile = "/tmp/stream-$streamKey.sock";
+
+    // FFmpeg daemon must have created this socket already
+    if (!file_exists($socketFile)) return;
+
+    // Convert base64 chunk back to binary
+    $chunk = base64_decode($data['chunk']);
+    file_put_contents($socketFile, $chunk, FILE_APPEND);
+    break;
         }
     }
 
