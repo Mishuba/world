@@ -302,6 +302,7 @@ addSongsToArray("Music/Outside/", $sentToJsArray, 23, null, $s3, $bucketName);
 
 
 // --- Finally output JSON ---
+$sentToJsArray[11] = array_values(array_unique($sentToJsArray[11]));
 $TsunamiFlowRadio = json_encode($sentToJsArray, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE | JSON_UNESCAPED_SLASHES);
 
 // Write cache first (safe write)
