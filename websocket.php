@@ -12,115 +12,120 @@ use React\Socket\Server as SocketServer;
 class TsunamiFlowWebSocketServer implements MessageComponentInterface {
 
     protected \SplObjectStorage $clients;
+    protected array $ffmpeg = []; // streamKey => [process, stdin]
 
     public function __construct() {
         $this->clients = new \SplObjectStorage();
-        echo "🌊 TsunamiFlow WebSocket CONTROL server started\n";
+        echo "🌊 TsunamiFlow WebSocket MEDIA server started\n";
     }
 
     public function onOpen(ConnectionInterface $conn) {
-$origin = $conn->httpRequest->getHeader('Origin')[0] ?? '';
+        $origin = $conn->httpRequest->getHeader('Origin')[0] ?? '';
+        if ($origin !== 'https://tsunamiflow.club') {
+            $conn->close();
+            return;
+        }
 
-    if ($origin !== 'https://tsunamiflow.club') {
-        $conn->close();
-        return;
-    }
         $this->clients->attach($conn);
 
-        $query = $conn->httpRequest->getUri()->getQuery();
-        parse_str($query, $params);
+        parse_str($conn->httpRequest->getUri()->getQuery(), $params);
 
         $conn->meta = [
             'role' => $params['role'] ?? 'viewer',
             'key'  => $params['key']  ?? null
         ];
 
-        echo "🟢 Connection {$conn->resourceId} ({$conn->meta['role']})\n";
-
-        $conn->send(json_encode([
-            'type' => 'welcome',
-            'id'   => $conn->resourceId,
-            'role' => $conn->meta['role']
-        ]));
+        echo "🟢 {$conn->resourceId} connected ({$conn->meta['role']})\n";
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
+
+        /* ========================= */
+        /* ===== BINARY = MEDIA ==== */
+        /* ========================= */
+
         if (!is_string($msg)) {
-            // HARD RULE: no binary over WebSocket
+            $key = $from->meta['key'];
+            if (!$key || !isset($this->ffmpeg[$key])) return;
+
+            fwrite($this->ffmpeg[$key]['stdin'], $msg);
             return;
         }
 
+        /* ========================= */
+        /* ===== JSON = CONTROL ==== */
+        /* ========================= */
+
         $data = json_decode($msg, true);
-        if (!is_array($data) || !isset($data['type'])) {
-            return;
-        }
+        if (!isset($data['type'])) return;
 
         switch ($data['type']) {
 
-            case 'chat':
-                $this->broadcast([
-                    'type'     => 'chat',
-                    'from'     => $from->resourceId,
-                    'username' => $data['username'] ?? 'anon',
-                    'message'  => $data['message'] ?? ''
-                ]);
-                break;
-
-            case 'signal':
-    if (!$from->meta['key']) return;
-
-    foreach ($this->clients as $client) {
-        if ($client === $from) continue;
-        if ($client->meta['key'] !== $from->meta['key']) continue;
-
-        $client->send(json_encode([
-            'type' => 'signal',
-            'from' => $from->resourceId,
-            'data' => $data['data']
-        ]));
-    }
-    break;
-
             case 'start_stream':
-                echo "🚀 Stream requested by {$from->resourceId}\n";
-                // You trigger FFmpeg / RTMP / WHIP OUTSIDE this process
+                $this->startFFmpeg($from);
                 break;
 
             case 'stop_stream':
-                echo "🛑 Stream stop requested by {$from->resourceId}\n";
+                $this->stopFFmpeg($from);
                 break;
-
-case 'stream_chunk':
-    $streamKey = $from->meta['key'];
-    if (!$streamKey) return;
-
-    $socketFile = "/tmp/stream-$streamKey.sock";
-
-    // FFmpeg daemon must have created this socket already
-    if (!file_exists($socketFile)) return;
-
-    // Convert base64 chunk back to binary
-    $chunk = base64_decode($data['chunk']);
-    file_put_contents($socketFile, $chunk, FILE_APPEND);
-    break;
         }
     }
 
-    protected function broadcast(array $payload, ?ConnectionInterface $exclude = null) {
-        $json = json_encode($payload);
-        foreach ($this->clients as $client) {
-            if ($exclude && $client === $exclude) continue;
-            $client->send($json);
-        }
+    protected function startFFmpeg(ConnectionInterface $conn) {
+        $key = $conn->meta['key'];
+        if (!$key || isset($this->ffmpeg[$key])) return;
+
+        echo "🚀 Starting FFmpeg for stream $key\n";
+
+        $cmd = [
+            'ffmpeg',
+            '-loglevel', 'warning',
+            '-fflags', 'nobuffer',
+            '-f', 'webm',
+            '-i', 'pipe:0',
+            '-c:v', 'copy',
+            '-c:a', 'aac',
+            '-f', 'flv',
+            "rtmp://localhost/live/$key"
+        ];
+
+        $desc = [
+            0 => ['pipe', 'w'], // stdin
+            1 => ['file', "/tmp/ffmpeg-$key.log", 'a'],
+            2 => ['file', "/tmp/ffmpeg-$key.err", 'a']
+        ];
+
+        $proc = proc_open($cmd, $desc, $pipes);
+        if (!is_resource($proc)) return;
+
+        stream_set_blocking($pipes[0], false);
+
+        $this->ffmpeg[$key] = [
+            'process' => $proc,
+            'stdin'   => $pipes[0]
+        ];
+    }
+
+    protected function stopFFmpeg(ConnectionInterface $conn) {
+        $key = $conn->meta['key'];
+        if (!$key || !isset($this->ffmpeg[$key])) return;
+
+        echo "🛑 Stopping FFmpeg for stream $key\n";
+
+        fclose($this->ffmpeg[$key]['stdin']);
+        proc_terminate($this->ffmpeg[$key]['process']);
+
+        unset($this->ffmpeg[$key]);
     }
 
     public function onClose(ConnectionInterface $conn) {
+        $this->stopFFmpeg($conn);
         $this->clients->detach($conn);
-        echo "🔴 Connection {$conn->resourceId} closed\n";
+        echo "🔴 {$conn->resourceId} disconnected\n";
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
-        echo "💥 Error {$conn->resourceId}: {$e->getMessage()}\n";
+        echo "💥 {$e->getMessage()}\n";
         $conn->close();
     }
 }
@@ -131,12 +136,6 @@ case 'stream_chunk':
 
 $loop = Factory::create();
 
-/*
-  IMPORTANT:
-  - NO TLS HERE
-  - NGINX TERMINATES SSL
-  - THIS IS PLAIN WS
-*/
 $socket = new SocketServer('127.0.0.1:8443', $loop);
 
 new IoServer(
