@@ -165,9 +165,13 @@ foreach ($Objects as $page) {
                 }
                 $array[$index][$index2][] = "https://radio.tsunamiflow.club/" . $decodedKey;
             } else {
+if ($index !== 11) {
                 $array[$index][] = "https://radio.tsunamiflow.club/" . $decodedKey;
+}
             }
+if ($index !== 11) {
             $array[11][] = "https://radio.tsunamiflow.club/" . $decodedKey;
+}
         }
     }
         } catch (AwsException $e) {
