@@ -13,6 +13,14 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
 
     protected \SplObjectStorage $clients;
     protected array $ffmpeg = []; // streamKey => [process, stdin]
+    protected array $restream = []; // streamKey => [process]
+
+    // Destination RTMP endpoints
+    protected array $destinations = [
+        'youtube' => 'rtmp://a.rtmp.youtube.com/live2/3egr-4vfq-56yj-amtg-e7v1',
+        // 'twitch' => 'rtmp://live.twitch.tv/app/XXXX',
+        // 'instagram' => 'rtmp://rtmp.instagram.com:80/rtmp/XXXX',
+    ];
 
     public function __construct() {
         $this->clients = new \SplObjectStorage();
@@ -36,31 +44,29 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
         ];
 
         echo "🟢 {$conn->resourceId} connected ({$conn->meta['role']})\n";
+
+        // If a streamer joins, start restream if not already running
+        if ($conn->meta['role'] === 'streamer') {
+            $this->startRestream($conn->meta['key']);
+        }
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
+        $key = $from->meta['key'] ?? null;
+        if (!$key) return;
 
-        /* ========================= */
-        /* ===== BINARY = MEDIA ==== */
-        /* ========================= */
-
+        // Binary video from client
         if (!is_string($msg)) {
-            $key = $from->meta['key'];
-            if (!$key || !isset($this->ffmpeg[$key])) return;
-
+            if (!isset($this->ffmpeg[$key])) return;
             fwrite($this->ffmpeg[$key]['stdin'], $msg);
             return;
         }
 
-        /* ========================= */
-        /* ===== JSON = CONTROL ==== */
-        /* ========================= */
-
+        // JSON control messages
         $data = json_decode($msg, true);
         if (!isset($data['type'])) return;
 
         switch ($data['type']) {
-
             case 'start_stream':
                 $this->startFFmpeg($from);
                 break;
@@ -75,7 +81,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
         $key = $conn->meta['key'];
         if (!$key || isset($this->ffmpeg[$key])) return;
 
-        echo "🚀 Starting FFmpeg for stream $key\n";
+        echo "🚀 Starting FFmpeg for local RTMP push: $key\n";
 
         $cmd = [
             'ffmpeg',
@@ -107,19 +113,81 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
     }
 
     protected function stopFFmpeg(ConnectionInterface $conn) {
-        $key = $conn->meta['key'];
+        $key = $conn->meta['key'] ?? null;
         if (!$key || !isset($this->ffmpeg[$key])) return;
 
-        echo "🛑 Stopping FFmpeg for stream $key\n";
+        echo "🛑 Stopping FFmpeg local push: $key\n";
 
         fclose($this->ffmpeg[$key]['stdin']);
         proc_terminate($this->ffmpeg[$key]['process']);
 
         unset($this->ffmpeg[$key]);
+
+        // Also stop restream
+        $this->stopRestream($key);
+    }
+
+    protected function startRestream(string $key) {
+        if (isset($this->restream[$key])) {
+            echo "♻️ Restream already running for $key\n";
+            return;
+        }
+
+        $input = "rtmp://localhost/live/$key";
+
+        // Use ffprobe to check if RTMP has video
+        $cmdProbe = "ffprobe -v error -show_entries stream=codec_type -of json '$input'";
+        exec($cmdProbe, $out, $ret);
+        if ($ret !== 0) {
+            echo "⚠️ No active local RTMP, waiting for WebSocket push for $key\n";
+            // We rely on WebSocket pushing video via startFFmpeg
+            $input = "rtmp://localhost/live/$key"; // input will be available once FFmpeg starts
+        }
+
+        echo "🚀 Starting restream for $key\n";
+
+        $cmd = [
+            'ffmpeg',
+            '-re',
+            '-i', $input,
+            '-c:v', 'copy',
+            '-c:a', 'copy',
+        ];
+
+        foreach ($this->destinations as $dest) {
+            $cmd[] = '-f';
+            $cmd[] = 'flv';
+            $cmd[] = $dest;
+        }
+
+        $desc = [
+            0 => ['pipe', 'r'],
+            1 => ['file', "/tmp/restream-$key.log", 'a'],
+            2 => ['file', "/tmp/restream-$key.err", 'a']
+        ];
+
+        $proc = proc_open($cmd, $desc, $pipes);
+        if (!is_resource($proc)) return;
+
+        $this->restream[$key] = [
+            'process' => $proc,
+            'pipes'   => $pipes
+        ];
+    }
+
+    protected function stopRestream(string $key) {
+        if (!isset($this->restream[$key])) return;
+
+        echo "🛑 Stopping restream for $key\n";
+        proc_terminate($this->restream[$key]['process']);
+        unset($this->restream[$key]);
     }
 
     public function onClose(ConnectionInterface $conn) {
-        $this->stopFFmpeg($conn);
+        $key = $conn->meta['key'] ?? null;
+        if ($key) {
+            $this->stopFFmpeg($conn);
+        }
         $this->clients->detach($conn);
         echo "🔴 {$conn->resourceId} disconnected\n";
     }
