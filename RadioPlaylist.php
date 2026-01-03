@@ -65,7 +65,16 @@ if (file_exists($cacheLock) && time() - filemtime($cacheLock) < 60) {
     exit;
 }
 
-file_put_contents($cacheLock, getmypid());
+$lockHandle = fopen($cacheLock, 'c');
+if (!flock($lockHandle, LOCK_EX | LOCK_NB)) {
+    if (file_exists($cacheFile)) {
+        echo file_get_contents($cacheFile);
+        exit;
+    }
+    http_response_code(503);
+    echo json_encode(["error" => "Cache is being built"]);
+    exit;
+}
 
 // --- Your category array (kept same shape) ---
 $sentToJsArray = array(
