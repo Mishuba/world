@@ -149,7 +149,7 @@ foreach ($Objects as $page) {
             $key = $obj['Key'];
 
             // only mp3
-            if (!str_ends_with(strtolower($key), '.mp3')) continue;
+            if (substr(strtolower($key), -4) !== '.mp3') continue;
 
             // Ensure index exists
             if (!isset($array[$index]) || !is_array($array[$index])) {
