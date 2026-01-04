@@ -119,7 +119,7 @@ try {
             $cartItems = $_SESSION['ShoppingCartItems'] ?? [];
             if (empty($cartItems)) respond(['error' => 'Cart is empty'], 400);
 
-            $checkout = CreateStripeCheckout($cartItems, "$domain/server.php?type=Printful Checkout", "$domain/cancelled.php");
+            $checkout = CreateStripeCheckout($cartItems, "$domain/tfMain.php?type=Printful Checkout", "$domain/cancelled.php");
             respond([
                 'success' => !empty($checkout['success']),
                 'checkout_url' => $checkout['url'] ?? null,
@@ -167,7 +167,7 @@ try {
                     ],
                     'quantity' => 1
                 ]],
-                'success_url' => "$domain/server.php?session_id={CHECKOUT_SESSION_ID}",
+                'success_url' => "$domain/tfMain.php?session_id={CHECKOUT_SESSION_ID}",
                 'cancel_url' => "$domain/failed.php",
                 'metadata' => $userData
             ]);
