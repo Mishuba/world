@@ -22,11 +22,6 @@ use Stripe\StripeClient;
 // ----------------------------
 // Always fetch products for footer
 // ----------------------------
-$myProductsFr = $_SESSION['PrintfulItems'] ?? BasicPrintfulRequest();
-if (!isset($myProductsFr['result']) || !is_array($myProductsFr['result'])) {
-    $myProductsFr['result'] = [];
-}
-$showSuccess = true; // always show footer
 
 // ----------------------------
 // CORS
@@ -209,3 +204,9 @@ try {
 } catch (Exception $e) {
     respond(['error' => $e->getMessage()], 500);
 }
+
+$myProductsFr = $_SESSION['PrintfulItems'] ?? BasicPrintfulRequest();
+if (!isset($myProductsFr['result']) || !is_array($myProductsFr['result'])) {
+    $myProductsFr['result'] = [];
+}
+$showSuccess = true; // always show footer
