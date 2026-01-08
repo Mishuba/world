@@ -31,23 +31,14 @@ $showSuccess = true; // always show footer
 // ----------------------------
 // CORS
 // ----------------------------
-if (isApiRequest()) {
-    $allowedOrigins = [
-        "https://www.tsunamiflow.club",
-        "https://world.tsunamiflow.club",
-        "https://tsunamiflow.club"
-    ];
-    if (!empty($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
-        header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}");
-        header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-        header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
-
+header("Access-Control-Allow-Origin: https://www.tsunamiflow.club");
 header("Access-Control-Allow-Credentials: true");
-    }
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        http_response_code(200);
-        exit;
-    }
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
 }
 
 // ----------------------------
