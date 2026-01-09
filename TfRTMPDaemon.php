@@ -1,4 +1,4 @@
-<php
+<?php
 $streamKey = $argv[1] ?? null;
 if (!$streamKey) exit("Usage: php TfRTMPDaemon.php STREAMKEY\n");
 
