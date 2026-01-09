@@ -14,23 +14,6 @@ session_set_cookie_params([
 
 session_start();
 
-// ----------------------------
-// Always fetch products for footer
-// ----------------------------
-
-// ----------------------------
-// CORS
-// ----------------------------
-header("Access-Control-Allow-Origin: https://tsunamiflow.club");
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
-
 require_once __DIR__ . "/config.php";
 require_once __DIR__ . "/functions.php";
 require_once __DIR__ . "/vendor/autoload.php";
