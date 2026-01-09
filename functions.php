@@ -95,7 +95,7 @@ function respond(array $data, int $status = 200) {
 
 function isApiRequest(): bool {
     $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-    return isset($_SERVER['HTTP_X_REQUESTED_WITH'])
+    return isset($_SERVER['HTTP_X_REQUESTED_WITH']) || isset($_SERVER['HTTP_X_REQUEST_TYPE'])
         || str_contains($contentType, 'application/json')
         || ($_SERVER['REQUEST_METHOD'] === 'POST');
 }
