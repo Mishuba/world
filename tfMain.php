@@ -6,7 +6,7 @@ ini_set('display_startup_errors', 1);
 session_set_cookie_params([
     'lifetime' => 0,
     'path' => '/',
-    'domain' => '.tsunamiflow.club',
+    'domain' => 'https://tsunamiflow.club',
     'secure' => true,
     'httponly' => true,
     'samesite' => 'None'
