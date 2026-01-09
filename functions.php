@@ -4,10 +4,27 @@ header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
 
+// Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
+
+// --- ERRORS ---
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => '.tsunamiflow.club',
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'None'
+]);
+if (session_status() === PHP_SESSION_NONE) session_start();
+
 
 // --- Required files & namespaces ---
 //require_once "Arrays.php";
@@ -17,11 +34,6 @@ require_once __DIR__ . "/vendor/autoload.php";
 use Stripe\StripeClient;
 use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\CardException;
-
-// --- Start session ---
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 
 // --- NanoTech Database Credentials ---
 $nanoH = NANO_HOST;
