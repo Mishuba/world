@@ -4,12 +4,6 @@
 //ini_set('display_errors', $DEBUG ? '1' : '0');
 //error_reporting($DEBUG ? E_ALL : 0);
 
-require "stripestuff/vendor/autoload.php";
-
-use Aws\Exception\AwsException;
-use Aws\Credentials\Credentials;
-use Aws\S3\S3Client;
-
 header("Access-Control-Allow-Origin: https://tsunamiflow.club");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
@@ -20,6 +14,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
+
+require "/vendor/autoload.php";
+
+use Aws\Exception\AwsException;
+use Aws\Credentials\Credentials;
+use Aws\S3\S3Client;
 
 // Ensure request type
 $requestType =
