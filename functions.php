@@ -15,6 +15,8 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
+
+if (session_status() === PHP_SESSION_NONE) {
 session_set_cookie_params([
     'lifetime' => 0,
     'path' => '/',
@@ -23,7 +25,11 @@ session_set_cookie_params([
     'httponly' => true,
     'samesite' => 'None'
 ]);
-if (session_status() === PHP_SESSION_NONE) session_start();
+
+ session_start();
+} else {
+
+}
 
 
 // --- Required files & namespaces ---
