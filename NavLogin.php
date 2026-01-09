@@ -1,7 +1,7 @@
 <?php
 
 require 'config.php';
-header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Origin: https://tsunamiflow.club");
 
 // Allow specific headers
 header("Access-Control-Allow-Headers: X-Requested-With, Content-Type");
