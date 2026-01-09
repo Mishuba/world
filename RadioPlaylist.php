@@ -1,25 +1,4 @@
 <?php
-$allowed = [
-    'https://tsunamiflow.club',
-    'https://www.tsunamiflow.club',
-    'https://world.tsunamiflow.club'
-];
-
-if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed, true)) {
-    header("Access-Control-Allow-Origin: ".$_SERVER['HTTP_ORIGIN']);
-}
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, X-Requested-With, X-Request-Type, Authorization");
-header("Access-Control-Allow-Credentials: true");
-header("Cache-Control: public, max-age=300");
-header("Vary: Origin");
-
-// Handle preflight
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
-
 // Debug toggle (set environment variable DEBUG=1 to show PHP errors)
 //$DEBUG = getenv('DEBUG') === '1';
 //ini_set('display_errors', $DEBUG ? '1' : '0');
@@ -31,7 +10,16 @@ use Aws\Exception\AwsException;
 use Aws\Credentials\Credentials;
 use Aws\S3\S3Client;
 
+header("Access-Control-Allow-Origin: https://tsunamiflow.club");
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
 header("Content-Type: application/json; charset=utf-8");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
 
 // Ensure request type
 $requestType =
