@@ -308,5 +308,5 @@ fclose($lockHandle);
 /* -------------------------
    RESPONSE
    ------------------------- */
-echo $TsunamiFlowRadio;
+echo respond($sentToJsArray);
 exit;
