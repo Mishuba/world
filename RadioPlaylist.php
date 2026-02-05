@@ -15,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+require_once __DIR__ . "/functions.php";
 require "/vendor/autoload.php";
 
 use Aws\Exception\AwsException;
