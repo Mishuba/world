@@ -5,11 +5,11 @@ header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
 
+// Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
-
 
 // ============================
 // ERROR REPORTING (DEV)
@@ -40,25 +40,29 @@ function respond(array $data, int $status = 200): void {
     header("Access-Control-Allow-Credentials: true");
     header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
     header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
-
     http_response_code($status);
     header("Content-Type: application/json");
     echo json_encode($data);
-    exit; // 🔴 REQUIRED
+    exit;
 }
-
-// ============================
-// API MODE DETECTION
-// ============================
 
 // ============================
 // INPUT NORMALIZATION
 // ============================
-$data = json_decode(file_get_contents("php://input"), true) ?? [];
+$rawInput = file_get_contents("php://input");
+$data = json_decode($rawInput, true) ?? $_POST ?? [];
 $method = $_SERVER['REQUEST_METHOD'];
 
+// ============================
+// STRIPE INIT
+// ============================
+if (!defined('STRIPE_SECRET_KEY')) die("Error: STRIPE_SECRET_KEY not defined");
+$stripe = new StripeClient(STRIPE_SECRET_KEY ?? ''); // Ensure $stripeSecretKey comes from config.php
+
 try {
+
     if ($method === 'POST' && isApiRequest()) {
+
         // ---- Add Product to Cart ----
         if (isset($_POST['addProductToCart'])) {
             $variantId = trim($_POST['product_id'] ?? '');
@@ -135,6 +139,8 @@ try {
             }
 
             $costMap = ['regular' => 400, 'vip' => 700, 'team' => 1000];
+            $metadata = array_map('strval', $userData); // Convert all values to string for Stripe
+
             $s = $stripe->checkout->sessions->create([
                 'payment_method_types' => ['card'],
                 'mode' => 'payment',
@@ -148,7 +154,7 @@ try {
                 ]],
                 'success_url' => "$domain/tfMain.php?session_id={CHECKOUT_SESSION_ID}",
                 'cancel_url' => "$domain/failed.php",
-                'metadata' => $userData
+                'metadata' => $metadata
             ]);
 
             if (!empty($s->url)) {
@@ -187,6 +193,7 @@ try {
     respond(['error' => $e->getMessage()], 500);
 }
 
+// Legacy fallback for server-rendered pages
 $myProductsFr = $_SESSION['PrintfulItems'] ?? BasicPrintfulRequest();
 if (!isset($myProductsFr['result']) || !is_array($myProductsFr['result'])) {
     $myProductsFr['result'] = [];
