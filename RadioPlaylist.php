@@ -29,7 +29,7 @@ $requestType =
 
 if ($requestType !== 'fetchRadioSongs') {
     http_response_code(400);
-    echo json_encode(["error" => "Invalid Request Type"]);
+    respond(["error" => "Invalid Request Type"]);
     exit;
 }
 
@@ -46,7 +46,7 @@ if (!flock($lockHandle, LOCK_EX | LOCK_NB)) {
         exit;
     }
     http_response_code(503);
-    echo json_encode(["error" => "Cache is being built"]);
+    respond(["error" => "Cache is being built"]);
     exit;
 }
 
@@ -88,7 +88,7 @@ $bucketName = getenv('CloudflareR2Name') ?: 'tsunami-radio';
 if (!$accessKey || !$secretKey || !$r2Endpoint) {
     // If credentials are missing, respond with an error instead of silently failing
     http_response_code(500);
-    echo json_encode([
+    respond([
         "error" => "Missing R2 credentials or endpoint. Set R2_ACCESS_KEY, R2_SECRET_KEY and R2_ENDPOINT environment variables."
     ]);
     exit;
@@ -105,7 +105,7 @@ try {
     ]);
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(["error" => "Failed to initialize S3 client: " . $e->getMessage()]);
+    respond(["error" => "Failed to initialize S3 client: " . $e->getMessage()]);
     exit;
 }
 
