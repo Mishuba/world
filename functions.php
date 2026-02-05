@@ -92,10 +92,14 @@ function handleDatabaseError($e){
     }
 }
 
-function respond(array $data, int $status = 200) {
+function respond(array $data, int $status = 200): void {
+    header("Access-Control-Allow-Origin: https://tsunamiflow.club");
+    header("Access-Control-Allow-Credentials: true");
+    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+    header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
     http_response_code($status);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    header("Content-Type: application/json");
+    echo json_encode($data);
     exit;
 }
 
