@@ -29,14 +29,23 @@ if (!isset($_GET['fetch_printful_items'])) {
 
 function printfulRequest($endpoint) {
     $ch = curl_init("https://api.printful.com" . $endpoint);
+
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => [
-            "Authorization: Bearer {PRINTFUL_API_KEY}"
-        ]
+            "Authorization: Bearer " . PRINTFUL_API_KEY
+        ],
+        CURLOPT_TIMEOUT => 30
     ]);
 
     $response = curl_exec($ch);
+
+    if ($response === false) {
+        return [
+            "error" => curl_error($ch)
+        ];
+    }
+
     curl_close($ch);
 
     return json_decode($response, true);
