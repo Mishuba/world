@@ -1,5 +1,4 @@
 <?php
-<?php
 $allowedOrigins = [
     "https://tsunamiflow.club",
     "https://www.tsunamiflow.club"
