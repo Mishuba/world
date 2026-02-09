@@ -1,10 +1,16 @@
 <?php
-// Debug toggle (set environment variable DEBUG=1 to show PHP errors)
-//$DEBUG = getenv('DEBUG') === '1';
-//ini_set('display_errors', $DEBUG ? '1' : '0');
-//error_reporting($DEBUG ? E_ALL : 0);
+// Improved CORS
+$allowedOrigins = [
+    "https://tsunamiflow.club",
+    "https://www.tsunamiflow.club"
+];
 
-header("Access-Control-Allow-Origin: https://tsunamiflow.club");
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+} else {
+    header("Access-Control-Allow-Origin: https://tsunamiflow.club");
+}
+
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Request-Type");
@@ -17,7 +23,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . "/config.php";
 require_once __DIR__ . "/functions.php";
-require_once __DIR__ . "/vendor/autoload.php";
 
 // Ensure request type
 $requestType =
@@ -38,7 +43,6 @@ if (!defined('PRINTFUL_API_KEY')) {
     exit;
 }
 
-
 function printfulRequest($endpoint) {
     $ch = curl_init("https://api.printful.com" . $endpoint);
 
@@ -51,19 +55,33 @@ function printfulRequest($endpoint) {
     ]);
 
     $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
     if ($response === false) {
-        return [
-            "error" => curl_error($ch)
-        ];
+        $error = curl_error($ch);
+        curl_close($ch);
+        return ["error" => $error];
     }
 
     curl_close($ch);
 
+    if ($httpCode >= 400) {
+        return ["error" => "Printful HTTP Error " . $httpCode];
+    }
+
     return json_decode($response, true);
 }
 
-// 1️⃣ Fetch store products
+// 🔒 File cache
+$cacheFile = __DIR__ . "/cache/printful_items.json";
+$cacheTTL  = 600;
+
+if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTTL) {
+    echo file_get_contents($cacheFile);
+    exit;
+}
+
+// Fetch store products
 $productsResponse = printfulRequest("/store/products");
 
 if (!isset($productsResponse['result'])) {
@@ -76,18 +94,32 @@ $items = [];
 
 foreach ($productsResponse['result'] as $product) {
 
-    // 2️⃣ Fetch variants for each product
     $variantResponse = printfulRequest("/store/products/" . $product['id']);
 
     $variants = [];
     if (isset($variantResponse['result']['sync_variants'])) {
         foreach ($variantResponse['result']['sync_variants'] as $variant) {
+
+            $image = null;
+            if (!empty($variant['files'])) {
+                foreach ($variant['files'] as $file) {
+                    if (!empty($file['preview_url'])) {
+                        $image = $file['preview_url'];
+                        break;
+                    }
+                }
+            }
+
+            if ($image === null && isset($product['thumbnail_url'])) {
+                $image = $product['thumbnail_url'];
+            }
+
             $variants[] = [
                 "variant_id" => $variant['id'],
                 "name"       => $variant['name'],
                 "price"      => $variant['retail_price'],
                 "sku"        => $variant['sku'],
-                "image"      => $variant['files'][0]['preview_url'] ?? null
+                "image"      => $image
             ];
         }
     }
@@ -101,8 +133,13 @@ foreach ($productsResponse['result'] as $product) {
     ];
 }
 
-echo json_encode([
+$output = json_encode([
     "items" => $items
 ]);
+
+if (is_dir(dirname($cacheFile)) || mkdir(dirname($cacheFile), 0775, true)) {
+    file_put_contents($cacheFile, $output);
+}
+
+echo $output;
 exit;
->
