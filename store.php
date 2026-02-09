@@ -117,7 +117,7 @@ foreach ($productsResponse['result'] as $product) {
     $items[] = [
         "product_id"   => $product['id'],
         "name"         => $product['name'],
-        "description"  => "no description" //$product['description'],
+        "description"  => "no description", //$product['description'],
         "thumbnail"    => $product['thumbnail_url'],
         "variants"     => $variants
     ];
