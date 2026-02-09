@@ -1,31 +1,34 @@
 <?php
-$allowedOrigins = [
-    "https://tsunamiflow.club",
-    "https://www.tsunamiflow.club"
-];
+// Debug toggle (set environment variable DEBUG=1 to show PHP errors)
+//$DEBUG = getenv('DEBUG') === '1';
+//ini_set('display_errors', $DEBUG ? '1' : '0');
+//error_reporting($DEBUG ? E_ALL : 0);
 
-if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
-    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
-    header("Access-Control-Allow-Credentials: true");
-}
-
+header("Access-Control-Allow-Origin: https://tsunamiflow.club");
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
-header("Content-Type: application/json");
+header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Request-Type");
+header("Content-Type: application/json; charset=utf-8");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
-// ============================
-// ERROR REPORTING (DEV)
-// ============================
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 
-session_start();
-require 'config.php';
+require_once __DIR__ . "/config.php";
+require_once __DIR__ . "/functions.php";
+require_once __DIR__ . "/vendor/autoload.php";
+
+// Ensure request type
+$requestType =
+    $_SERVER['HTTP_X_REQUEST_TYPE']
+    ?? ($_GET['type'] ?? null);
+
+if ($requestType !== 'fetch_printful_items') {
+    http_response_code(400);
+    respond(["error" => "Invalid Request Type"]);
+    exit;
+}
 
 if (!defined('PRINTFUL_API_KEY')) {
     http_response_code(500);
@@ -35,11 +38,6 @@ if (!defined('PRINTFUL_API_KEY')) {
     exit;
 }
 
-if (!isset($_GET['fetch_printful_items'])) {
-    http_response_code(400);
-    echo json_encode(["error" => "Invalid request"]);
-    exit;
-}
 
 function printfulRequest($endpoint) {
     $ch = curl_init("https://api.printful.com" . $endpoint);
@@ -106,4 +104,5 @@ foreach ($productsResponse['result'] as $product) {
 echo json_encode([
     "items" => $items
 ]);
+exit;
 >
