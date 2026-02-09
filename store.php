@@ -1,26 +1,12 @@
 <?php
 ob_start();           // buffer output
 error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
-$allowedOrigins = [
-    "https://tsunamiflow.club",
-    "https://www.tsunamiflow.club"
-];
-
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-if (in_array($origin, $allowedOrigins, true)) {
-    header("Access-Control-Allow-Origin: $origin");
-} else {
-    header("Access-Control-Allow-Origin: https://tsunamiflow.club");
-}
-
+header("Access-Control-Allow-Origin: https://tsunamiflow.club");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Request-Type");
-header("Vary: Origin");
 header("Content-Type: application/json; charset=utf-8");
 
-/* 🔥 PRE-FLIGHT MUST EXIT HERE */
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
