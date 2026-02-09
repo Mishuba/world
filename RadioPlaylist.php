@@ -80,11 +80,11 @@ $sentToJsArray = array(
 );
 
 // --- Initialize S3 (Cloudflare R2) client once, using env vars for safety ---
-$accountId = getenv('CloudflareR2AccountId') ?: null;
-$accessKey = getenv('CloudflareR2AccessKey') ?: null;
-$secretKey = getenv('CloudflareR2SecretKey') ?: null;
-$r2Endpoint = getenv('CloudflareR2Endpoint') ?: "https://radio.tsunamiflow.club"; // e.g. https://<account-id>.r2.cloudflarestorage.com
-$bucketName = getenv('CloudflareR2Name') ?: 'tsunami-radio';
+$accountId = CLOUDFLARE_R2_ACCOUNT_ID ?: null;
+$accessKey = CLOUDFLARE_R2_ACCESS_KEY ?: null;
+$secretKey = CLOUDFLARE_R2_SECRET_KEY ?: null;
+$r2Endpoint = CLOUDFLARE_R2_ENDPOINT ?: "https://radio.tsunamiflow.club"; // e.g. https://<account-id>.r2.cloudflarestorage.com
+$bucketName = CLOUDFLARE_R2_NAME ?: 'tsunami-radio';
 
 if (!$accessKey || !$secretKey || !$r2Endpoint) {
     // If credentials are missing, respond with an error instead of silently failing
