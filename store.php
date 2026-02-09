@@ -1,12 +1,14 @@
 <?php
-// Improved CORS
+<?php
 $allowedOrigins = [
     "https://tsunamiflow.club",
     "https://www.tsunamiflow.club"
 ];
 
-if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
-    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+if (in_array($origin, $allowedOrigins, true)) {
+    header("Access-Control-Allow-Origin: $origin");
 } else {
     header("Access-Control-Allow-Origin: https://tsunamiflow.club");
 }
@@ -14,13 +16,14 @@ if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Request-Type");
+header("Vary: Origin");
 header("Content-Type: application/json; charset=utf-8");
 
+/* 🔥 PRE-FLIGHT MUST EXIT HERE */
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
-
 require_once __DIR__ . "/config.php";
 require_once __DIR__ . "/functions.php";
 
