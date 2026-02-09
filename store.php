@@ -1,15 +1,17 @@
 <?php
-header("Access-Control-Allow-Origin: https://tsunamiflow.club");
-header("Access-Control-Allow-Credentials: true");
+$allowedOrigins = [
+    "https://tsunamiflow.club",
+    "https://www.tsunamiflow.club"
+];
+
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+    header("Access-Control-Allow-Credentials: true");
+}
+
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
 header("Content-Type: application/json");
-
-// Handle preflight requests
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
 
 // ============================
 // ERROR REPORTING (DEV)
