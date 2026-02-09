@@ -27,6 +27,14 @@ ini_set('display_startup_errors', 1);
 session_start();
 require 'config.php';
 
+if (!defined('PRINTFUL_API_KEY')) {
+    http_response_code(500);
+    echo json_encode([
+        "error" => "PRINTFUL_API_KEY not defined"
+    ]);
+    exit;
+}
+
 if (!isset($_GET['fetch_printful_items'])) {
     http_response_code(400);
     echo json_encode(["error" => "Invalid request"]);
