@@ -137,9 +137,5 @@ $output = json_encode([
     "items" => $items
 ]);
 
-if (is_dir(dirname($cacheFile)) || mkdir(dirname($cacheFile), 0775, true)) {
-    file_put_contents($cacheFile, $output);
-}
-
 echo $output;
 exit;
