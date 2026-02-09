@@ -1,4 +1,6 @@
 <?php
+ob_start();           // buffer output
+error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
 $allowedOrigins = [
     "https://tsunamiflow.club",
     "https://www.tsunamiflow.club"
@@ -141,3 +143,4 @@ $output = json_encode([
 
 echo $output;
 exit;
+ob_end_flush();
