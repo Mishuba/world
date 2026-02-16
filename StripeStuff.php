@@ -30,10 +30,11 @@ try {
             $currency = $input['currency'] ?? 'usd';
 
             $paymentIntent = \Stripe\PaymentIntent::create([
-                'amount' => $amount,
-                'currency' => $currency,
-                'automatic_payment_methods' => ['enabled' => true],
-            ]);
+    'amount' => $amount,
+    'currency' => $currency,
+    'customer' => $customer->id ?? null, // optional
+    'automatic_payment_methods' => ['enabled' => true],
+]);
 
             echo json_encode(['clientSecret' => $paymentIntent->client_secret]);
             break;
