@@ -13,6 +13,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $input = json_decode(file_get_contents('php://input'), true);
 $action = $input['action'] ?? '';
 
+if ($saveCustomer) {
+    if (!isset($input['customerId'])) {
+        $customer = \Stripe\Customer::create([
+            'email' => $email ?? null,
+        ]);
+    } else {
+        $customer = \Stripe\Customer::retrieve($input['customerId']);
+    }
+}
+
 try {
     switch ($action) {
         case 'createPaymentIntent':
