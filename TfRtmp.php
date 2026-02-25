@@ -23,7 +23,7 @@ if (!$streamKey) {
 
 $streamKey = preg_replace('/[^a-zA-Z0-9_-]/', '', $streamKey);
 
-$scriptPath = '/var/www/world/hls/scripts/ffmpeg-restream.sh';
+$scriptPath = '/var/www/world/hls/scripts/TfLive.sh';
 $cmd = escapeshellcmd("$scriptPath $streamKey") . " > /dev/null 2>&1 &";
 exec($cmd);
 
