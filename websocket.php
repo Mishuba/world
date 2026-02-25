@@ -188,6 +188,18 @@ $this->startRestream($key);
         unset($this->restream[$key]);
     }
 
+
+protected function reapFFmpeg(string $key) {
+    if (!isset($this->ffmpeg[$key])) return;
+
+    $status = proc_get_status($this->ffmpeg[$key]['process']);
+    if (!$status['running']) {
+        fclose($this->ffmpeg[$key]['stdin']);
+        unset($this->ffmpeg[$key]);
+        echo "🧹 Reaped dead FFmpeg for $key\n";
+    }
+}
+
     public function onClose(ConnectionInterface $conn) {
         $key = $conn->meta['key'] ?? null;
         if ($key) {
@@ -218,3 +230,9 @@ new IoServer(
 );
 
 $loop->run();
+
+$loop->addPeriodicTimer(5, function () {
+    foreach (array_keys($this->ffmpeg) as $key) {
+        $this->reapFFmpeg($key);
+    }
+});
