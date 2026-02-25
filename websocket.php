@@ -56,12 +56,16 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
         if (!$key) return;
 
         // Binary video from client
-        if (!is_string($msg)) {
-            if (!isset($this->ffmpeg[$key])) return;
-            fwrite($this->ffmpeg[$key]['stdin'], $msg);
-            return;
-        }
+ if (!is_string($msg)) {
+    if (!isset($this->ffmpeg[$key])) return;
 
+    $bytes = @fwrite($this->ffmpeg[$key]['stdin'], $msg);
+    if ($bytes === false) {
+        echo "⚠️ FFmpeg pipe broken for $key, stopping stream\n";
+        $this->stopFFmpeg($from);
+    }
+    return;
+}
         // JSON control messages
         $data = json_decode($msg, true);
         if (!isset($data['type'])) return;
