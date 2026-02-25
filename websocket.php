@@ -47,7 +47,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
 
         // If a streamer joins, start restream if not already running
         if ($conn->meta['role'] === 'streamer') {
-            $this->startRestream($conn->meta['key']);
+           
         }
     }
 
@@ -113,6 +113,8 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
             'process' => $proc,
             'stdin'   => $pipes[0]
         ];
+
+$this->startRestream($key);
     }
 
     protected function stopFFmpeg(ConnectionInterface $conn) {
