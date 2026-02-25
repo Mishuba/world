@@ -229,10 +229,10 @@ new IoServer(
     $loop
 );
 
-$loop->run();
-
 $loop->addPeriodicTimer(5, function () {
     foreach (array_keys($this->ffmpeg) as $key) {
         $this->reapFFmpeg($key);
     }
 });
+
+$loop->run();
