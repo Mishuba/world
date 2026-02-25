@@ -83,7 +83,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
 
         echo "🚀 Starting FFmpeg for local RTMP push: $key\n";
 
-        $$cmd = [
+        $cmd = [
   'ffmpeg',
   '-loglevel', 'warning',
   '-fflags', 'nobuffer',
