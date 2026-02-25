@@ -230,12 +230,16 @@ $loop = Factory::create();
 
 $socket = new SocketServer('127.0.0.1:8443', $loop);
 
+// Create one server instance and save it
+$server = new TsunamiFlowWebSocketServer();
+
 new IoServer(
-    new HttpServer(new WsServer(new TsunamiFlowWebSocketServer())),
+    new HttpServer(new WsServer($server)),
     $socket,
     $loop
 );
 
+// Periodically reap dead FFmpeg processes
 $loop->addPeriodicTimer(5, function () use ($server) {
     foreach ($server->getActiveFFmpegKeys() as $key) {
         $server->reapFFmpeg($key);
