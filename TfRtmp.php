@@ -1,8 +1,14 @@
 <?php
+// Debug toggle (set environment variable DEBUG=1 to show PHP errors)
+//$DEBUG = getenv('DEBUG') === '1';
+//ini_set('display_errors', $DEBUG ? '1' : '0');
+//error_reporting($DEBUG ? E_ALL : 0);
+
 header("Access-Control-Allow-Origin: https://tsunamiflow.club");
-header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Access-Control-Max-Age: 86400");
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Request-Type");
+header("Content-Type: application/json; charset=utf-8");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
