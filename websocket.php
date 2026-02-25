@@ -204,6 +204,9 @@ protected function reapFFmpeg(string $key) {
     }
 }
 
+public function getActiveFFmpegKeys(): array {
+    return array_keys($this->ffmpeg);
+}
     public function onClose(ConnectionInterface $conn) {
         $key = $conn->meta['key'] ?? null;
         if ($key) {
@@ -233,9 +236,9 @@ new IoServer(
     $loop
 );
 
-$loop->addPeriodicTimer(5, function () {
-    foreach (array_keys($this->ffmpeg) as $key) {
-        $this->reapFFmpeg($key);
+$loop->addPeriodicTimer(5, function () use ($server) {
+    foreach ($server->getActiveFFmpegKeys() as $key) {
+        $server->reapFFmpeg($key);
     }
 });
 
