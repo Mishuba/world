@@ -87,7 +87,7 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
 
         echo "🚀 Starting FFmpeg for local RTMP push: $key\n";
 
-        $cmd = [
+   $cmd = [
   'ffmpeg',
   '-loglevel', 'warning',
   '-fflags', 'nobuffer',
@@ -95,11 +95,20 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
   '-analyzeduration', '0',
   '-probesize', '32',
   '-f', 'webm',
+  '-thread_queue_size', '512',   // buffer stdin bursts
   '-i', 'pipe:0',
+  '-map', '0:v:0',
+  '-map', '0:a:0',
   '-c:v', 'libx264',
   '-preset', 'veryfast',
   '-tune', 'zerolatency',
+  '-profile:v', 'baseline',      // RTMP/CDN friendly
+  '-pix_fmt', 'yuv420p',
+  '-g', '60',                     // keyframe every 2s @30fps
+  '-keyint_min', '60',
   '-c:a', 'aac',
+  '-ar', '48000',
+  '-b:a', '128k',
   '-f', 'flv',
   "rtmp://localhost/live/$key"
 ];
