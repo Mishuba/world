@@ -96,7 +96,9 @@ class TsunamiFlowWebSocketServer implements MessageComponentInterface {
   '-probesize', '32',
   '-f', 'webm',
   '-i', 'pipe:0',
-  '-c:v', 'copy',
+  '-c:v', 'libx264',
+  '-preset', 'veryfast',
+  '-tune', 'zerolatency',
   '-c:a', 'aac',
   '-f', 'flv',
   "rtmp://localhost/live/$key"
@@ -159,7 +161,9 @@ $this->startRestream($key);
             'ffmpeg',
             '-re',
             '-i', $input,
-            '-c:v', 'copy',
+            '-c:v', 'libx264',
+            '-preset', 'veryfast',
+            '-tune', 'zerolatency',
             '-c:a', 'copy',
         ];
 
