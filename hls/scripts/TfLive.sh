@@ -16,6 +16,7 @@ echo "$(date) Starting enhanced FFmpeg for stream: $STREAM_KEY" >> "$LOGFILE"
 -i "$INPUT_STREAM" \
 -vf "fps=30,minterpolate=fps=60,hqdn3d=1.5:1.5:6:6,scale=1280:720:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,eq=contrast=1.1:saturation=1.15" \
 -c:v libx264 -preset veryfast -tune zerolatency \
+-x264-params "nal-hrd=cbr:force-cfr=1"
 -b:v 3000k -minrate 2000k -maxrate 4000k -bufsize 8000k
 -g 60 -keyint_min 60 \
 -c:a aac -b:a 128k \
