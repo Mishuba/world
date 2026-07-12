@@ -413,6 +413,7 @@ function BasicPrintfulRequest() {
     $ch = curl_init('https://api.printful.com/store/products');
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . PRINTFUL_API_KEY]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     $response = curl_exec($ch);
     if (curl_errno($ch)) { curl_close($ch); return ['result'=>[]]; }
     curl_close($ch);
@@ -426,6 +427,7 @@ function PrintfulProductionDescription($productId) {
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . PRINTFUL_API_KEY]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     if (curl_errno($ch)) { curl_close($ch); return ['result'=>[]]; }
     curl_close($ch);
 
@@ -447,6 +449,7 @@ function NPOtfTS(array $orderData) {
     ]);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($orderData));
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
 
     $response = curl_exec($ch);
     if (curl_errno($ch)) { curl_close($ch); return null; }
@@ -489,7 +492,7 @@ function CreatePrintfulOrder(array $cartItems, array $customer) {
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($order));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
@@ -608,6 +611,7 @@ function updateYouTube($title, $description) {
         CURLOPT_HTTPHEADER => [$headers],
         CURLOPT_POSTFIELDS => json_encode($data)
     ]);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     $response = curl_exec($ch);
     if (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 200) {
         error_log("YouTube update failed: $response");
@@ -635,6 +639,7 @@ function updateTwitch($title) {
         CURLOPT_HTTPHEADER => [$headers],
         CURLOPT_POSTFIELDS => json_encode($data)
     ]);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     $response = curl_exec($ch);
     if (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 204) {
         error_log("Twitch update failed: $response");
@@ -659,6 +664,7 @@ function updateTwitter($title, $description) {
         CURLOPT_HTTPHEADER => [$headers],
         CURLOPT_POSTFIELDS => json_encode($data)
     ]);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     $response = curl_exec($ch);
     if (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 201) {
         error_log("Twitter update failed: $response");
@@ -684,6 +690,7 @@ function updateInstagram($title, $description) {
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => http_build_query($data)
     ]);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     $response = curl_exec($ch);
     if (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 200) {
         error_log("Instagram update failed: $response");
@@ -714,6 +721,7 @@ function updateFacebook($title, $description) {
         CURLOPT_HTTPHEADER => [$headers],
         CURLOPT_POSTFIELDS => json_encode($data)
     ]);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     $response = curl_exec($ch);
     if (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 200) {
         error_log("Facebook update failed: $response");
@@ -747,6 +755,7 @@ function updateTumblr($title, $description) {
         CURLOPT_HTTPHEADER => [$headers],
         CURLOPT_POSTFIELDS => json_encode($data)
     ]);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     $response = curl_exec($ch);
     if (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 201) {
         error_log("Tumblr update failed: $response");
@@ -777,6 +786,7 @@ function updatePinterest($title, $description) {
         CURLOPT_HTTPHEADER => [$headers],
         CURLOPT_POSTFIELDS => json_encode($data)
     ]);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     $response = curl_exec($ch);
     if (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 201) {
         error_log("Pinterest update failed: $response");
