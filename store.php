@@ -47,55 +47,6 @@ if (!defined('PRINTFUL_API_KEY') || empty(PRINTFUL_API_KEY)) {
 
 /*
 |--------------------------------------------------------------------------
-| Cache Configuration
-|--------------------------------------------------------------------------
-*/
-
-$cacheFile = __DIR__ . "/cache/printful_items.json";
-$cacheTTL  = 600;
-$bypassCache = isset($_GET['bypass_cache']) && $_GET['bypass_cache'] === '1';
-
-/*
-|--------------------------------------------------------------------------
-| Ensure Cache Directory Exists
-|--------------------------------------------------------------------------
-*/
-
-$cacheDirectory = dirname($cacheFile);
-
-if (!is_dir($cacheDirectory)) {
-    $mkdirResult = mkdir($cacheDirectory, 0755, true);
-    if (!$mkdirResult && !is_dir($cacheDirectory)) {
-        http_response_code(500);
-        echo json_encode([
-            "error" => "Failed to create cache directory"
-        ]);
-        ob_end_flush();
-        exit;
-    }
-}
-
-/*
-|--------------------------------------------------------------------------
-| Serve Cache (if valid and not bypassed)
-|--------------------------------------------------------------------------
-*/
-
-if (
-    !$bypassCache
-    && file_exists($cacheFile)
-    && (time() - filemtime($cacheFile)) < $cacheTTL
-) {
-    $cachedContent = file_get_contents($cacheFile);
-    if ($cachedContent !== false) {
-        echo $cachedContent;
-        ob_end_flush();
-        exit;
-    }
-}
-
-/*
-|--------------------------------------------------------------------------
 | Fetch Products
 |--------------------------------------------------------------------------
 */
@@ -196,22 +147,6 @@ if ($output === false) {
     ]);
     ob_end_flush();
     exit;
-}
-
-/*
-|--------------------------------------------------------------------------
-| Save Cache
-|--------------------------------------------------------------------------
-*/
-
-$cacheWritten = file_put_contents(
-    $cacheFile,
-    $output,
-    LOCK_EX
-);
-
-if ($cacheWritten === false) {
-    error_log("Warning: Failed to write cache file: " . $cacheFile);
 }
 
 echo $output;
