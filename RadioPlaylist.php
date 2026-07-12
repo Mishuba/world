@@ -34,23 +34,6 @@ if ($requestType !== 'fetchRadioSongs') {
     exit;
 }
 
-$cacheDir = sys_get_temp_dir() . '/TfRadioCache';
-if (!is_dir($cacheDir)) mkdir($cacheDir, 0700, true);
-
-$cacheFile = $cacheDir . '/radioCache.json';
-$cacheLock = $cacheDir . '/radioCache.lock';
-
-$lockHandle = fopen($cacheLock, 'c');
-if (!flock($lockHandle, LOCK_EX | LOCK_NB)) {
-    if (file_exists($cacheFile)) {
-        echo file_get_contents($cacheFile);
-        exit;
-    }
-    http_response_code(503);
-    respond(["error" => "Cache is being built"]);
-    exit;
-}
-
 // --- Your category array (kept same shape) ---
 $sentToJsArray = array(
     array(array(), array(), array(), array()), // 0 Rizz
@@ -292,19 +275,6 @@ addSongsToArray("Music/Outside/", $sentToJsArray, 23, null, $s3, $bucketName);
 // --- Finally output JSON ---
 $sentToJsArray[11] = array_values(array_unique($sentToJsArray[11]));
 $TsunamiFlowRadio = json_encode($sentToJsArray, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE | JSON_UNESCAPED_SLASHES);
-
-$tmpFile = $cacheFile . '.tmp';
-file_put_contents($tmpFile, $TsunamiFlowRadio);
-
-if (!rename($tmpFile, $cacheFile)) {
-    error_log("Failed to rename cache file");
-}
-
-/* -------------------------
-   RELEASE THE LOCK HERE
-   ------------------------- */
-flock($lockHandle, LOCK_UN);
-fclose($lockHandle);
 
 /* -------------------------
    RESPONSE
