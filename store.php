@@ -30,12 +30,6 @@ if ($requestType !== 'fetch_printful_items') {
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Validate API Key
-|--------------------------------------------------------------------------
-*/
-
 if (!defined('PRINTFUL_API_KEY') || empty(PRINTFUL_API_KEY)) {
     http_response_code(500);
 
@@ -45,59 +39,6 @@ if (!defined('PRINTFUL_API_KEY') || empty(PRINTFUL_API_KEY)) {
 
     ob_end_flush();
     exit;
-}
-
-function printfulRequest($endpoint)
-{
-    $ch = curl_init("https://api.printful.com" . $endpoint);
-
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => [
-            "Authorization: Bearer " . PRINTFUL_API_KEY,
-            "Content-Type: application/json"
-        ],
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2
-    ]);
-
-    $response = curl_exec($ch);
-
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-    if ($response === false) {
-
-        $error = curl_error($ch);
-
-        curl_close($ch);
-
-        return [
-            "error" => $error
-        ];
-    }
-
-    curl_close($ch);
-
-    $decoded = json_decode($response, true);
-
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        return [
-            "error" => "Invalid JSON response from Printful",
-            "raw_response" => $response
-        ];
-    }
-
-    if ($httpCode >= 400) {
-        return [
-            "error" => "Printful HTTP Error " . $httpCode,
-            "response" => $decoded
-        ];
-    }
-
-    return $decoded;
 }
 
 /*
@@ -155,7 +96,7 @@ if (
 |--------------------------------------------------------------------------
 */
 
-$productsResponse = printfulRequest("/store/products");
+$productsResponse = BasicPrintfulRequest();
 
 if (
     !is_array($productsResponse)
@@ -183,9 +124,7 @@ foreach ($productsResponse['result'] as $product) {
         continue;
     }
 
-    $variantResponse = printfulRequest(
-        "/store/products/" . $product['id']
-    );
+    $variantResponse = getVariantandPrice($product['id']);
 
     $variants = [];
 
@@ -239,12 +178,6 @@ foreach ($productsResponse['result'] as $product) {
     ];
 }
 
-/*
-|--------------------------------------------------------------------------
-| Encode Output
-|--------------------------------------------------------------------------
-*/
-
 $output = json_encode(
     [
         "items" => $items
@@ -276,12 +209,6 @@ $cacheWritten = file_put_contents(
 if ($cacheWritten === false) {
     error_log("Warning: Failed to write cache file: " . $cacheFile);
 }
-
-/*
-|--------------------------------------------------------------------------
-| Output Response
-|--------------------------------------------------------------------------
-*/
 
 echo $output;
 

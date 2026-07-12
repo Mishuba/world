@@ -92,7 +92,7 @@ function handleDatabaseError($e){
     }
 }
 
-function respond(array $data, int $status = 200): void {
+function respond(array $data, int $status = 200) {
     header("Access-Control-Allow-Origin: https://tsunamiflow.club");
     header("Access-Control-Allow-Credentials: true");
     header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
@@ -103,14 +103,14 @@ function respond(array $data, int $status = 200): void {
     exit;
 }
 
-function isApiRequest(): bool {
+function isApiRequest() {
     $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
     return isset($_SERVER['HTTP_X_REQUESTED_WITH']) || isset($_SERVER['HTTP_X_REQUEST_TYPE'])
         || str_contains($contentType, 'application/json')
         || ($_SERVER['REQUEST_METHOD'] === 'POST');
 }
 
-function addToCart(array $item, int $quantity): array {
+function addToCart(array $item, int $quantity) {
     if (!isset($_SESSION['ShoppingCartItems'])) $_SESSION['ShoppingCartItems'] = [];
 
     $found = false;
@@ -409,7 +409,7 @@ function Login() {
 }
 
 // --- Printful functions ---
-function BasicPrintfulRequest(): array {
+function BasicPrintfulRequest() {
     $ch = curl_init('https://api.printful.com/store/products');
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . PRINTFUL_API_KEY]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -421,7 +421,7 @@ function BasicPrintfulRequest(): array {
     return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result'=>[]];
 }
 
-function PrintfulProductionDescription($productId): array {
+function PrintfulProductionDescription($productId) {
     $ch = curl_init("https://api.printful.com/store/products/$productId");
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . PRINTFUL_API_KEY]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -433,12 +433,12 @@ function PrintfulProductionDescription($productId): array {
     return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result'=>[]];
 }
 
-function getVariantandPrice($productId): ?array {
+function getVariantandPrice($productId) {
     $prod = PrintfulProductionDescription($productId);
     return $prod['result'] ?? null; // Return full product
 }
 
-function NPOtfTS(array $orderData): ?int {
+function NPOtfTS(array $orderData) {
     $ch = curl_init('https://api.printful.com/orders');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -456,7 +456,7 @@ function NPOtfTS(array $orderData): ?int {
     return $decodedResponse['result']['id'] ?? null;
 }
 
-function CreatePrintfulOrder(array $cartItems, array $customer): array {
+function CreatePrintfulOrder(array $cartItems, array $customer) {
     $apiKey = PRINTFUL_API_KEY;
     if (!$apiKey) return ['error' => 'Missing Printful API key'];
 
@@ -501,7 +501,7 @@ function CreatePrintfulOrder(array $cartItems, array $customer): array {
 }
 
 // -------- Stripe Checkout Session --------
-function CreateStripeCheckout(array $cartItems, string $successUrl, string $cancelUrl): array {
+function CreateStripeCheckout(array $cartItems, string $successUrl, string $cancelUrl) {
     $stripe = new StripeClient(STRIPE_SECRET_KEY);
     $lineItems = [];
 
