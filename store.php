@@ -3,19 +3,10 @@
 ob_start();
 
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 
-header("Access-Control-Allow-Origin: https://tsunamiflow.club");
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Request-Type");
 header("Content-Type: application/json; charset=utf-8");
-
-/*
-|--------------------------------------------------------------------------
-| Handle Preflight
-|--------------------------------------------------------------------------
-*/
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -23,20 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Dependencies
-|--------------------------------------------------------------------------
-*/
-
 require_once __DIR__ . "/config.php";
 require_once __DIR__ . "/functions.php";
-
-/*
-|--------------------------------------------------------------------------
-| Validate Request Type
-|--------------------------------------------------------------------------
-*/
 
 $requestType =
     $_SERVER['HTTP_X_REQUEST_TYPE']
@@ -44,17 +23,9 @@ $requestType =
 
 if ($requestType !== 'fetch_printful_items') {
     http_response_code(400);
-
-    if (function_exists('respond')) {
-        respond([
-            "error" => "Invalid Request Type"
-        ]);
-    } else {
-        echo json_encode([
-            "error" => "Invalid Request Type"
-        ]);
-    }
-
+    echo json_encode([
+        "error" => "Invalid Request Type"
+    ]);
     ob_end_flush();
     exit;
 }
@@ -76,12 +47,6 @@ if (!defined('PRINTFUL_API_KEY') || empty(PRINTFUL_API_KEY)) {
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Printful API Helper
-|--------------------------------------------------------------------------
-*/
-
 function printfulRequest($endpoint)
 {
     $ch = curl_init("https://api.printful.com" . $endpoint);
@@ -94,7 +59,9 @@ function printfulRequest($endpoint)
         ],
         CURLOPT_TIMEOUT => 30,
         CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_FOLLOWLOCATION => true
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2
     ]);
 
     $response = curl_exec($ch);
@@ -141,6 +108,7 @@ function printfulRequest($endpoint)
 
 $cacheFile = __DIR__ . "/cache/printful_items.json";
 $cacheTTL  = 600;
+$bypassCache = isset($_GET['bypass_cache']) && $_GET['bypass_cache'] === '1';
 
 /*
 |--------------------------------------------------------------------------
@@ -151,23 +119,34 @@ $cacheTTL  = 600;
 $cacheDirectory = dirname($cacheFile);
 
 if (!is_dir($cacheDirectory)) {
-    mkdir($cacheDirectory, 0755, true);
+    $mkdirResult = mkdir($cacheDirectory, 0755, true);
+    if (!$mkdirResult && !is_dir($cacheDirectory)) {
+        http_response_code(500);
+        echo json_encode([
+            "error" => "Failed to create cache directory"
+        ]);
+        ob_end_flush();
+        exit;
+    }
 }
 
 /*
 |--------------------------------------------------------------------------
-| Serve Cache
+| Serve Cache (if valid and not bypassed)
 |--------------------------------------------------------------------------
 */
 
 if (
-    file_exists($cacheFile)
+    !$bypassCache
+    && file_exists($cacheFile)
     && (time() - filemtime($cacheFile)) < $cacheTTL
 ) {
-    echo file_get_contents($cacheFile);
-
-    ob_end_flush();
-    exit;
+    $cachedContent = file_get_contents($cacheFile);
+    if ($cachedContent !== false) {
+        echo $cachedContent;
+        ob_end_flush();
+        exit;
+    }
 }
 
 /*
@@ -194,15 +173,15 @@ if (
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Build Item List
-|--------------------------------------------------------------------------
-*/
-
 $items = [];
 
 foreach ($productsResponse['result'] as $product) {
+
+    // Validate product ID exists
+    if (empty($product['id'])) {
+        error_log("Warning: Product missing ID: " . json_encode($product));
+        continue;
+    }
 
     $variantResponse = printfulRequest(
         "/store/products/" . $product['id']
@@ -274,13 +253,10 @@ $output = json_encode(
 );
 
 if ($output === false) {
-
     http_response_code(500);
-
     echo json_encode([
-        "error" => "Failed to encode JSON"
+        "error" => "Failed to encode JSON response"
     ]);
-
     ob_end_flush();
     exit;
 }
@@ -291,11 +267,15 @@ if ($output === false) {
 |--------------------------------------------------------------------------
 */
 
-file_put_contents(
+$cacheWritten = file_put_contents(
     $cacheFile,
     $output,
     LOCK_EX
 );
+
+if ($cacheWritten === false) {
+    error_log("Warning: Failed to write cache file: " . $cacheFile);
+}
 
 /*
 |--------------------------------------------------------------------------
