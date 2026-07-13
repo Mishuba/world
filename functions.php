@@ -92,14 +92,30 @@ function handleDatabaseError($e){
     }
 }
 
-function respond(array $data, int $status = 200) {
+function respond(array $data, bool $tycadome = false, int $status = 200) {
     header("Access-Control-Allow-Origin: https://tsunamiflow.club");
     header("Access-Control-Allow-Credentials: true");
     header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
     header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
     http_response_code($status);
     header("Content-Type: application/json");
-    echo json_encode($data);
+
+    $tf = [
+            "id" => $data["id"], //options.id
+            "type" => $data["type"], //command
+            "action" => $data["action"], // video.start
+            "meta" => $data["action"], // {}
+            "timestamp" => floor((microtime(true) * 1000) / 1000),
+            "state" => $data["state"], // 
+            "mode" => $data["mode"], //"async"
+            "payload" => $data["payload"] // {},
+        ];
+        if ($tycadome === true) {
+            //json_encode($tf, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE | JSON_UNESCAPED_SLASHES);
+            echo json_encode($tf);
+        } else {
+            echo json_encode($data);
+        }
     exit;
 }
 

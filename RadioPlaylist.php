@@ -1,9 +1,4 @@
 <?php
-// Debug toggle (set environment variable DEBUG=1 to show PHP errors)
-//$DEBUG = getenv('DEBUG') === '1';
-//ini_set('display_errors', $DEBUG ? '1' : '0');
-//error_reporting($DEBUG ? E_ALL : 0);
-
 header("Access-Control-Allow-Origin: https://tsunamiflow.club");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
