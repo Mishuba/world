@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
+json_decode($input, true) ?? $_POST ?? [];
 $action = $input['action'] ?? '';
 
 try {

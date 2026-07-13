@@ -92,25 +92,35 @@ function handleDatabaseError($e){
     }
 }
 
-function respond(array $data, bool $tycadome = false, int $status = 200) {
+function tycadome(string $id, string $type, string $action, array $meta, string $state, array $mode, array $payload) {
+return [
+            "id" => $id,
+            "type" => $type,
+            "action" => $action,
+            "meta" => $meta,
+            "timestamp" => floor((microtime(true) * 1000) / 1000),
+            "state" => $state,
+            "mode" => $mode, //"async"
+            "payload" => $payload // {},
+        ];
+}
+function respond(array $data, bool $Tycadome = false, int $status = 200) {
     header("Access-Control-Allow-Origin: https://tsunamiflow.club");
     header("Access-Control-Allow-Credentials: true");
     header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
     header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
     http_response_code($status);
     header("Content-Type: application/json");
-
-    $tf = [
-            "id" => $data["id"], //options.id
-            "type" => $data["type"], //command
-            "action" => $data["action"], // video.start
-            "meta" => $data["action"], // {}
-            "timestamp" => floor((microtime(true) * 1000) / 1000),
-            "state" => $data["state"], // 
-            "mode" => $data["mode"], //"async"
-            "payload" => $data["payload"] // {},
-        ];
-        if ($tycadome === true) {
+        if ($Tycadome === true) {
+                $tf = tycadome(
+                    $data["id"],
+                    $data["type"],
+                    $data["action"],
+                    $data["meta"],
+                    $data["state"],
+                    $data["mode"],
+                    $data["payload"]
+                );
             //json_encode($tf, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE | JSON_UNESCAPED_SLASHES);
             echo json_encode($tf);
         } else {

@@ -15,6 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+$rawInput = file_get_contents("php://input");
+$data = json_decode($rawInput, true) ?? $_POST ?? [] ?? '';
+
 $streamKey = $_GET['key'] ?? null;
 if (!$streamKey) {
     http_response_code(400);

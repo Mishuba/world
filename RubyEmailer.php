@@ -20,6 +20,7 @@ require_once __DIR__ . "/config.php";
 // Read raw input
 $input = json_decode(file_get_contents("php://input"), true);
 
+
 $required = [
     'WhatWeDoinBro',
     'MessageSubject',

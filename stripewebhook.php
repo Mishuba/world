@@ -1,4 +1,5 @@
 <?php
+
 require "vendor/autoload.php";
 require "config.php";
 
@@ -6,10 +7,11 @@ use Stripe\Stripe;
 use Stripe\Webhook;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
-use \Stripe\Exception\ApiErrorException;
+use Stripe\Exception\ApiErrorException;
 
 //Get Payload
 $payload = @file_get_contents("php://input");
+$stripeTsunamidata = json_decode($payload, true) ?? $_POST ?? [];
 //file_put_contents("/tmp/stripe_log.json", $payload . PHP_EOL, FILE_APPEND);
 
 //\Stripe\Stripe::setApiKey(WebhookSecretKey);
@@ -69,7 +71,7 @@ $event = Webhook::constructEvent($payload, $sig_header, WebhookSigningSecret);
 	header("Content-Type: text/plain");
 	echo("Webhook Failed" . $e->getMessage());
 	exit();
-} catch (\Stripe\Execption\SignatureVerificationException $e) {
+} catch (SignatureVerificationException $e) {
 	http_response_code(400);
 	header("Content-Type: text/plain");
 	error_log("Webhook signature verification failed: " . $e->getMessage());
@@ -86,13 +88,13 @@ $event = Webhook::constructEvent($payload, $sig_header, WebhookSigningSecret);
 			http_response_code(200);
 			$session = $event->data->object;
 			$WorkNow = json_encode([
-				"status" => success,
+				"status" => "success",
 				"id" => $event->data->object->id,
 				"event" => $event->type,
 				"object" => $event->object,
 				"created" => $event->created
 			]);
-			echo (WorkNow);
+			echo ($WorkNow);
 			break;
 		case "charge.expired":
 
@@ -150,7 +152,7 @@ $event = Webhook::constructEvent($payload, $sig_header, WebhookSigningSecret);
 				"amount_subtotal" => $session->amount_subtotal,
 				"amount_total" => $session->amount_total,
 				"tax_liability_type" => $session->automatic_tax->liability->type,
-				"tax_provider" => $session->automatic-tax->provider,
+				"tax_provider" => $session->automatic->tax->provider,
 				"tax_status" => $session->automatic->status,
 				"cancel_url" => $session->cancel_url,
 				"client_reference_id" => $session->client_reference_id,
