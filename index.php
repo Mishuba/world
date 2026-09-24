@@ -1,6 +1,6 @@
 <?php
 
-
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -17,5 +17,3 @@
    <p1> hey chris, I need you to use this as Ai or The Live Stream page or use this with my uiPath or unity project. Right now we just want to show this page so we know it works. </p1>
 </body>
 </html>
-
-?>
