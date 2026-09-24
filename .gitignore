@@ -1,2 +1,6 @@
 vendor/
 config.php
+.env
+.env.*
+vendor/
+

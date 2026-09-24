@@ -241,7 +241,9 @@ public function getActiveFFmpegKeys(): array {
 
 $loop = Factory::create();
 
-$socket = new SocketServer('127.0.0.1:8443', $loop);
+$port = getenv('PORT') ?: 8443; 
+
+$socket = new SocketServer('0.0.0.0:' . $port, $loop);
 
 // Create one server instance and save it
 $server = new TsunamiFlowWebSocketServer();
