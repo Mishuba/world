@@ -13,11 +13,12 @@ WORKDIR /app
 
 COPY composer.json ./
 
-RUN composer install \
-    --no-dev \
-    --prefer-dist \
-    --optimize-autoloader \
-    --no-interaction
+RUN composer config --global audit.block-insecure false \
+    && composer install \
+        --no-dev \
+        --prefer-dist \
+        --optimize-autoloader \
+        --no-interaction
 
 COPY . .
 
