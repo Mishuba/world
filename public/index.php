@@ -1,5 +1,5 @@
 <?php
-
+require_once "../Tycadome/tfMain.php";
 ?>
 
 <!DOCTYPE html>
