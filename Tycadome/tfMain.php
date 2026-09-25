@@ -1,12 +1,24 @@
 <?php
-header("Access-Control-Allow-Origin: https://tsunamiflow.club");
+$allowed_origins = [
+    "https://tsunamiflow.club",
+    "https://tsunamiflow.onrender.com",
+    "https://world-l87q.onrender.com"
+];
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+if (in_array($origin, $allowed_origins)) {
+    header("Access-Control-Allow-Origin: " . $origin);
+}
+
 header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
 
 // Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
+    //http_response_code(200); // shows 200
+    http_response_code(204); // No Content shown but passes.
     exit;
 }
 
@@ -25,8 +37,9 @@ session_start();
 // ============================
 // INCLUDES
 // ============================
-require_once __DIR__ . "/config.php";
+//require_once __DIR__ . "/config.php";
 require_once __DIR__ . "/Function/functions.php";
+require_once __DIR__ . "/Variables/tycadomeVariables.php";
 require_once __DIR__ . "../vendor/autoload.php";
 
 use Stripe\StripeClient;
@@ -48,10 +61,11 @@ app.listen(PORT, "0.0.0.0", () => {
 // ============================
 // INPUT NORMALIZATION
 // ============================
+/* tycadomeVariables.php already handles this
 $rawInput = file_get_contents("php://input");
 $data = json_decode($rawInput, true) ?? $_POST ?? [];
 $method = $_SERVER['REQUEST_METHOD'];
-
+*/
 // ============================
 // STRIPE INIT
 // ============================
