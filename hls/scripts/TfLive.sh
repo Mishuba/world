@@ -4,6 +4,9 @@ STREAM_KEY="$1"
 INPUT_STREAM="rtmp://localhost/live/$STREAM_KEY"
 LOGFILE="/var/log/ffmpeg-restream.log"
 
+#Twitch url
+TWITCH_URL=""
+#Youtbe url
 YOUTUBE_URL="rtmp://a.rtmp.youtube.com/live2/3egr-4vfq-56yj-amtg-e7v1"
 
 CPU_LIMIT=2.5

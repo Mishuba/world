@@ -10,14 +10,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
-json_decode($input, true) ?? $_POST ?? [];
-$action = $input['action'] ?? '';
+require_once __DIR__ . "/../Tycadome/Variables/tycadomeVariables.php";
+require "vendor/autoload.php";
+
+use Stripe\Stripe;
+use Stripe\Webhook;
+use Stripe\Exception\SignatureVerificationException;
+use Stripe\StripeClient;
+use Stripe\Exception\ApiErrorException;
+
+if (!defined('STRIPE_SECRET_KEY')) die("Error: STRIPE_SECRET_KEY not defined");
+$stripe = new StripeClient(STRIPE_SECRET_KEY ?? '');
+
+$action = $xmljson['action'] ?? '';
 
 try {
-    $saveCustomer = $input['saveCustomer'] ?? false;
-    $customerId = $input['customerId'] ?? null;
-    $email = $input['email'] ?? null;
+    $saveCustomer = $xmljson['saveCustomer'] ?? false;
+    $customerId = $xmljson['customerId'] ?? null;
+    $email = $xmljson['email'] ?? null;
     $customer = null;
 
     // Reuse or create customer if needed
@@ -35,8 +45,8 @@ try {
     switch ($action) {
 
         case 'createPaymentIntent':
-            $amount = $input['amount']; // in cents
-            $currency = $input['currency'] ?? 'usd';
+            $amount = $xmljson['amount']; // in cents
+            $currency = $xmljson['currency'] ?? 'usd';
 
             $paymentIntent = \Stripe\PaymentIntent::create([
                 'amount' => $amount,
@@ -52,7 +62,7 @@ try {
             break;
 
         case 'createSubscription':
-            $priceId = $input['priceId']; // Stripe Price ID
+            $priceId = $xmljson['priceId']; // Stripe Price ID
 
             if (!$customer) {
                 // Create customer if not already done

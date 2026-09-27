@@ -15,32 +15,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once __DIR__ . "/config.php";
+require_once __DIR__ . "/../Tycadome/Variables/tycadomeVariables.php";
+require_once __DIR__ . "/../Tycadome/Arrays/tycadomeArrays.php"; 
 
-// Read raw input
-$input = json_decode(file_get_contents("php://input"), true);
-
-
-$required = [
-    'WhatWeDoinBro',
-    'MessageSubject',
-    'MessageStart',
-    'MessageContinue',
-    'YoutubeLink',
-    'SpotifyLink',
-    'AppleLink',
-    'WavDownloadLink',
-    'Mp3DownloadLink'
-];
-
-if (!$input) {
+if (!$xmljson) {
     http_response_code(400);
     echo json_encode(["error" => "Invalid JSON body"]);
     exit;
 }
 
-foreach ($required as $field) {
-    if (!isset($input[$field])) {
+foreach ($UiPathTypes as $field) {
+    if (!isset($xmljson[$field])) {
         http_response_code(400);
         echo json_encode(["error" => "Missing field: $field"]);
         exit;
@@ -54,16 +39,16 @@ function cleanInput($input, $max = 5000, $isUrl = false) {
     }
     return $value;
 }
-$decisionOption = cleanInput($input['WhatWeDoinBro'], 200);
-$msgSub = cleanInput($input['MessageSubject'], 200);
-$msgStart = cleanInput($input['MessageStart'], 200);
-$msgContinue = cleanInput($input['MessageContinue'], 200);
+$decisionOption = cleanInput($xmljson['WhatWeDoinBro'], 200);
+$msgSub = cleanInput($xmljson['MessageSubject'], 200);
+$msgStart = cleanInput($xmljson['MessageStart'], 200);
+$msgContinue = cleanInput($xmljson['MessageContinue'], 200);
 
-$ytLink = cleanInput($input['YoutubeLink'], 200, true);
-$spotLink = cleanInput($input['SpotifyLink'], 200, true);
-$appleLink = cleanInput($input['AppleLink'], 200, true);
-$wavDl = cleanInput($input['WavDownloadLink'], 200, true);
-$mp3Dl = cleanInput($input['Mp3DownloadLink'], 200, true);
+$ytLink = cleanInput($xmljson['YoutubeLink'], 200, true);
+$spotLink = cleanInput($xmljson['SpotifyLink'], 200, true);
+$appleLink = cleanInput($xmljson['AppleLink'], 200, true);
+$wavDl = cleanInput($xmljson['WavDownloadLink'], 200, true);
+$mp3Dl = cleanInput($xmljson['Mp3DownloadLink'], 200, true);
 
 foreach (['ytLink','spotLink','appleLink','wavDl','mp3Dl'] as $var) {
     if ($$var === null) {

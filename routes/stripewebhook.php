@@ -1,23 +1,10 @@
 <?php
-
 require "vendor/autoload.php";
-require "config.php";
-
 use Stripe\Stripe;
 use Stripe\Webhook;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
 use Stripe\Exception\ApiErrorException;
-
-//Get Payload
-$payload = @file_get_contents("php://input");
-$stripeTsunamidata = json_decode($payload, true) ?? $_POST ?? [];
-//file_put_contents("/tmp/stripe_log.json", $payload . PHP_EOL, FILE_APPEND);
-
-//\Stripe\Stripe::setApiKey(WebhookSecretKey);
-//$StfPk = new StripeClient(WebhookSecretKey);
-
-$sig_header = $_SERVER["HTTP_STRIPE_SIGNATURE"] ?? "";
 
 function SendToTfClub ($TfCurl, $token, $membership, $FirstName, $LastName, $NickName, $Gender, $Birthday, $Email, $Username, $Password, $ChineseZodiacSign, $WesternZodiacSign, $SpiritAnimal, $CelticTreeZodiacSign, $NativeAmericanZodiacSign, $VerdicAstrologySign, $GuardianAngel, $ChineseElement, $EyeColorMeaning, $GreekMythologyArchetype, $NorseMythologyPatronDeity, $EgyptianZodiacSign, $MayanZodiacSign, $LoveLanguage, $BirthStone, $BirthFlower, $BloodType, $AttachmentStyle, $CharismaType, $BusinessPersonality, $DISC, $SocionicsType, $LearningStyle, $FinancialPersonalityType, $PrimaryMotivationStyle, $CreativeStyle, $ConflictManagementStyle, $TeamRolePreference){
 	$LetsDoThis = curl_setopt($TfCurl, CURLOPT_POSTFIELDS, [
@@ -64,7 +51,10 @@ function SendToTfClub ($TfCurl, $token, $membership, $FirstName, $LastName, $Nic
 }
 
 try {
-$event = Webhook::constructEvent($payload, $sig_header, WebhookSigningSecret);
+if (!defined('STRIPE_SECRET_KEY')) die("Error: STRIPE_SECRET_KEY not defined");
+$stripe = new StripeClient(STRIPE_SECRET_KEY ?? '');
+
+$stripe_webhook_event = Webhook::constructEvent($xml, $stripe_sig_header, WebhookSigningSecret);
 
 } catch (\UnexpectedValueException $e) {
 	http_response_code(400);
@@ -78,21 +68,23 @@ $event = Webhook::constructEvent($payload, $sig_header, WebhookSigningSecret);
 	echo("Webhook Signature Verficiation Failed: " . $e->getMessage());
 	exit();
 } finally {
-	$TfEventId = $event->id;
-	$TfEventObject = $event->object;
-	$TfEventAppVersion = $event->api_version;
-	$TfEventCreated = $event->created;
-	$TfEventLiveMode = $event->livemode;
-	switch($event->type) {
+	$TfEventId = $stripe_webhook_event->id;
+	$TfEventObject = $stripe_webhook_event->object;
+	$TfEventAppVersion = $stripe_webhook_event->api_version;
+	$TfEventCreated = $stripe_webhook_event->created;
+	$TfEventLiveMode = $stripe_webhook_event->livemode;
+
+	$stripe_webhook_event_type = $stripe_webhook_event->type;
+	switch($stripe_webhook_event_type) {
 		case "charge.captured":
 			http_response_code(200);
-			$session = $event->data->object;
+			$current_stripe_session = $stripe_webhook_event->data->object;
 			$WorkNow = json_encode([
 				"status" => "success",
-				"id" => $event->data->object->id,
-				"event" => $event->type,
-				"object" => $event->object,
-				"created" => $event->created
+				"id" => $stripe_webhook_event->data->object->id,
+				"event" => $stripe_webhook_event_type,
+				"object" => $stripe_webhook_event->object,
+				"created" => $stripe_webhook_event->created
 			]);
 			echo ($WorkNow);
 			break;
@@ -135,80 +127,79 @@ $event = Webhook::constructEvent($payload, $sig_header, WebhookSigningSecret);
 		case "checkout.session.async_payment_failed":
 			//Occurs when a payment intent using a delayed payment method fails
 			http_response_code(200);
-			$session = $event->data->object;
+			$current_stripe_session = $stripe_webhook_event->data->object;
 
 			echo("ok");
 			break;
 		case "checkout.session.async_payment_succeeded":
 			//Occurs when a payment intent using a delayed payment method finally succeeds.
 			http_response_code(200);
-			$session = $event->data->object;
-			$id = $session->id;
-			$
-
+			$current_stripe_session = $stripe_webhook_event->data->object;
+			$id = $current_stripe_session->id;
+			
 			$CheckoutDude = json_encode([
 				"id" => $id,
-				"object" => $session,
-				"amount_subtotal" => $session->amount_subtotal,
-				"amount_total" => $session->amount_total,
-				"tax_liability_type" => $session->automatic_tax->liability->type,
-				"tax_provider" => $session->automatic->tax->provider,
-				"tax_status" => $session->automatic->status,
-				"cancel_url" => $session->cancel_url,
-				"client_reference_id" => $session->client_reference_id,
-				"client_secret" => $session->client_secret,
-				"collected_information" => $session->collected_information,
-				"consent" => $session->conset,
-				"created" => $session->created,
-				"currency" => $session->currency,
-				"currency_conversion" => $session->currency_conversion,
-				"custom_fields" => $session->custom_fields,
-				"custom_text" => $session->custom_text->after_submit,
-				"shipping_address" => $session->custom_text->shipping_address,
-				"custom_text_submit" => $session->custom_text->submit,
-				"customer" => $session->customer,
-				"customer_creation" => $session->customer_creation,
-				"customer_details" => $session->customer_details,
-				"customer_email" => $session->customer_email,
-				"discounts" => $session->discounts,
-				"expires_at" => $session->expires_at,
-				"invoice" => $session->invoice,
-				"invoice_data_account_tax_ids" => $session->invoice_creation->invoice_data->account_tax_ids,
-				"invoice_data_custom_fields" => $session->invoice_creation->invoice_data->custom_fields,
-				"invoice_data_description" => $session->invoice_creation->invoice_data->description,
-				"invoice_data_footer" => $session->invoice_creation->invoice_data->footer,
-				"invoice_data_issuer" => $session->invoice_creation->invoice_data->issuer,
-				"invoice_data_metadata" => $session->invoice_creation->invoice_data->metadata,
-				"invoice_data_rendering_options" => $session->invoice_creation->invoice_data->rendering_options,
-				"metadata" => $session->metadata,
-				"mode" => $session->mode,
-				"origin_context" => $session->origin_context,
-				"payment_intent" => $session->payment_intent,
-				"payment_link" => $session->payment_link,
-				"payment_method_collection" => $session->payment_method_collection,
-				"payment_method_configuration_details_id" => $session->payment_method_configuration_details->id,
-				"payment_method_options_card_request_three_d_secure" => $session->payment_method_options->card->request_three_d_secure,
-				"payment_method_types" => $session->payment_method_types,
-				"payment_status" => $session->payment_status,
-				"permissions" => $session->permissions,
-				"recovered_from" => $session->recovered_from,
-				"saved_payment_method_options" => $session->saved_payment_method_options,
-				"setup_intent" => $session->setup_intent,
-				"shipping_address_collection" => $session->shipping_address_collection,
-				"shipping_cost" => $session->shipping_cost,
-				"shipping_details" => $session->shipping_details,
-				"shipping_options" => $session->shipping_options,
-				"status" => $session->session,
-				"submit_type" => $session->submit_type,
-				"subscription" => $session->subscription,
-				"success_url" => $session->success_url,
-				"total_details_amount_discount" => $session->total_details->amount_discount,
-				"total_details_amount_shipping" => $session->total_details->amount_shipping,
-				"total_details_amount_tax" => $session->total_details->amount_tax,
-				"total_details_ui_mode" => $session->total_details->ui_mode,
-				"total_details_url" => $session->total_details->url,
-				"total_details_wallet_options" => $session->total_details->wallet_options,
-				"previous_attributes" => $session->previous_attributes
+				"object" => $current_stripe_session,
+				"amount_subtotal" => $current_stripe_session->amount_subtotal,
+				"amount_total" => $current_stripe_session->amount_total,
+				"tax_liability_type" => $current_stripe_session->automatic_tax->liability->type,
+				"tax_provider" => $current_stripe_session->automatic->tax->provider,
+				"tax_status" => $current_stripe_session->automatic->status,
+				"cancel_url" => $current_stripe_session->cancel_url,
+				"client_reference_id" => $current_stripe_session->client_reference_id,
+				"client_secret" => $current_stripe_session->client_secret,
+				"collected_information" => $current_stripe_session->collected_information,
+				"consent" => $current_stripe_session->conset,
+				"created" => $current_stripe_session->created,
+				"currency" => $current_stripe_session->currency,
+				"currency_conversion" => $current_stripe_session->currency_conversion,
+				"custom_fields" => $current_stripe_session->custom_fields,
+				"custom_text" => $current_stripe_session->custom_text->after_submit,
+				"shipping_address" => $current_stripe_session->custom_text->shipping_address,
+				"custom_text_submit" => $current_stripe_session->custom_text->submit,
+				"customer" => $current_stripe_session->customer,
+				"customer_creation" => $current_stripe_session->customer_creation,
+				"customer_details" => $current_stripe_session->customer_details,
+				"customer_email" => $current_stripe_session->customer_email,
+				"discounts" => $current_stripe_session->discounts,
+				"expires_at" => $current_stripe_session->expires_at,
+				"invoice" => $current_stripe_session->invoice,
+				"invoice_data_account_tax_ids" => $current_stripe_session->invoice_creation->invoice_data->account_tax_ids,
+				"invoice_data_custom_fields" => $current_stripe_session->invoice_creation->invoice_data->custom_fields,
+				"invoice_data_description" => $current_stripe_session->invoice_creation->invoice_data->description,
+				"invoice_data_footer" => $current_stripe_session->invoice_creation->invoice_data->footer,
+				"invoice_data_issuer" => $current_stripe_session->invoice_creation->invoice_data->issuer,
+				"invoice_data_metadata" => $current_stripe_session->invoice_creation->invoice_data->metadata,
+				"invoice_data_rendering_options" => $current_stripe_session->invoice_creation->invoice_data->rendering_options,
+				"metadata" => $current_stripe_session->metadata,
+				"mode" => $current_stripe_session->mode,
+				"origin_context" => $current_stripe_session->origin_context,
+				"payment_intent" => $current_stripe_session->payment_intent,
+				"payment_link" => $current_stripe_session->payment_link,
+				"payment_method_collection" => $current_stripe_session->payment_method_collection,
+				"payment_method_configuration_details_id" => $current_stripe_session->payment_method_configuration_details->id,
+				"payment_method_options_card_request_three_d_secure" => $current_stripe_session->payment_method_options->card->request_three_d_secure,
+				"payment_method_types" => $current_stripe_session->payment_method_types,
+				"payment_status" => $current_stripe_session->payment_status,
+				"permissions" => $current_stripe_session->permissions,
+				"recovered_from" => $current_stripe_session->recovered_from,
+				"saved_payment_method_options" => $current_stripe_session->saved_payment_method_options,
+				"setup_intent" => $current_stripe_session->setup_intent,
+				"shipping_address_collection" => $current_stripe_session->shipping_address_collection,
+				"shipping_cost" => $current_stripe_session->shipping_cost,
+				"shipping_details" => $current_stripe_session->shipping_details,
+				"shipping_options" => $current_stripe_session->shipping_options,
+				"status" => $current_stripe_session->session,
+				"submit_type" => $current_stripe_session->submit_type,
+				"subscription" => $current_stripe_session->subscription,
+				"success_url" => $current_stripe_session->success_url,
+				"total_details_amount_discount" => $current_stripe_session->total_details->amount_discount,
+				"total_details_amount_shipping" => $current_stripe_session->total_details->amount_shipping,
+				"total_details_amount_tax" => $current_stripe_session->total_details->amount_tax,
+				"total_details_ui_mode" => $current_stripe_session->total_details->ui_mode,
+				"total_details_url" => $current_stripe_session->total_details->url,
+				"total_details_wallet_options" => $current_stripe_session->total_details->wallet_options,
+				"previous_attributes" => $current_stripe_session->previous_attributes
 			]);
 			// echo($CheckoutDude);
 			echo("ok");
@@ -216,11 +207,11 @@ $event = Webhook::constructEvent($payload, $sig_header, WebhookSigningSecret);
 		case "checkout.session.completed":
 		http_response_code(200);
 			// Occurs when a checkout Session has been successfully completed.
-		$session = $event->data->object;
-		if($event->data->object->metadata->membership === "regular" || $event->data->object->metadata->membership === "vip" || $event->data->object->metadata->membership === "team") {
+		$current_stripe_session = $stripe_webhook_event->data->object;
+		if($stripe_webhook_event->data->object->metadata->membership === "regular" || $stripe_webhook_event->data->object->metadata->membership === "vip" || $stripe_webhook_event->data->object->metadata->membership === "team") {
 			header("Content-Type: application/json");
-			$tfMetadata = $session->metadata;
-			$totalAmount = $session->line_items->price_data->unit_amount;
+			$tfMetadata = $current_stripe_session->metadata;
+			$totalAmount = $current_stripe_session->line_items->price_data->unit_amount;
 			$metadataArray = $tfMetadata->toArray();
 
 			$SendToTfClub = curl_init("https://www.tsunamiflow.club/server.php");
@@ -240,7 +231,7 @@ $event = Webhook::constructEvent($payload, $sig_header, WebhookSigningSecret);
 		case "checkout.session.expired":
 			//Occurs when a Checkout Session is expired.
 			http_response_code(200);
-			$session = $event->data->object;
+			$current_stripe_session = $stripe_webhook_event->data->object;
 			
 			echo("ok");
 			break;
@@ -265,13 +256,13 @@ $event = Webhook::constructEvent($payload, $sig_header, WebhookSigningSecret);
 		case "invoice_payment.paid":
 			http_response_code(200);
 			header("Content-Type: application/json");
-			$session = $event->data->object;
-			$id = $session->id;
-			$TfObject = $session->object;
-			$amount = $session->amount_paid;
-			$currency = $session->currency;
-			$status = $session->status;
-			$paymentIntentId = $session->payment->payment_intent;
+			$current_stripe_session = $stripe_webhook_event->data->object;
+			$id = $current_stripe_session->id;
+			$TfObject = $current_stripe_session->object;
+			$amount = $current_stripe_session->amount_paid;
+			$currency = $current_stripe_session->currency;
+			$status = $current_stripe_session->status;
+			$paymentIntentId = $current_stripe_session->payment->payment_intent;
 			$TfInvoice = json_encode([
 				"status" => "success",
 				"id" => $id,

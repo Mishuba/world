@@ -34,8 +34,12 @@ session_set_cookie_params([
 
 // --- Required files & namespaces ---
 //require_once "Arrays.php";
-require_once "config.php";
+require_once __DIR__ . "/../Variables/tycadomeVariables.php";
 require_once __DIR__ . "/vendor/autoload.php";
+
+use Aws\Exception\AwsException;
+use Aws\Credentials\Credentials;
+use Aws\S3\S3Client;
 
 use Stripe\StripeClient;
 use Stripe\Exception\ApiErrorException;
@@ -136,6 +140,89 @@ function isApiRequest() {
         || ($_SERVER['REQUEST_METHOD'] === 'POST');
 }
 
+function writeSession(array $data) {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    session_regenerate_id(true);
+
+    foreach ($data as $key => $value) {
+        $_SESSION[$key] = $value;
+    }
+}
+
+function addSongsToArray($path, array &$array, int $index, $index2 = null, string $bucket = 'tsunami-radio') {
+    try {
+    $credentials = new Credentials($accessKey, $secretKey);
+    $s3 = new S3Client([
+        "region" => "auto",
+        "endpoint" => $r2Endpoint,
+        "version" => "latest",
+        "credentials" => $credentials,
+        "use_path_style_endpoint" => true
+    ]);
+} catch (Exception $e) {
+    http_response_code(500);
+    respond(["error" => "Failed to initialize S3 client: " . $e->getMessage()]);
+    exit;
+}
+    if (!$s3) {
+        error_log("addSongsToArray: Missing S3 client");
+        return;
+    }
+
+    // Normalize prefix: remove leading slash, ensure trailing slash
+    $prefix = ltrim($path, '/');
+    if (substr($prefix, -1) !== '/') $prefix .= '/';
+
+    try {
+        $params = [
+            "Bucket" => $bucket,
+            "Prefix" => $prefix,
+            "MaxKeys" => 1000
+        ];
+
+        $Objects = $s3->getPaginator('ListObjectsV2', $params);
+foreach ($Objects as $page) {
+    if (!isset($page['Contents'])) continue;
+    foreach ($page['Contents'] as $obj) {
+
+        // your mp3 handling logic
+        if (!isset($obj['Key'])) continue;
+            $key = $obj['Key'];
+
+            // only mp3
+            if (substr(strtolower($key), -4) !== '.mp3') continue;
+
+            // Ensure index exists
+            if (!isset($array[$index]) || !is_array($array[$index])) {
+                $array[$index] = [];
+            }
+
+            $decodedKey = trim(urldecode(ltrim($key, '/')));
+
+            // If index2 provided, ensure the subarray exists
+            if ($index2 !== null) {
+                if (!isset($array[$index][$index2]) || !is_array($array[$index][$index2])) {
+                    $array[$index][$index2] = [];
+                }
+                $array[$index][$index2][] = "https://radio.tsunamiflow.club/" . $decodedKey;
+            } else {
+if ($index !== 11) {
+                $array[$index][] = "https://radio.tsunamiflow.club/" . $decodedKey;
+}
+            }
+if ($index !== 11) {
+            $array[11][] = "https://radio.tsunamiflow.club/" . $decodedKey;
+}
+        }
+    }
+        } catch (AwsException $e) {
+    error_log("AWS Exception in paginator: ".$e->getMessage());
+        } catch (Exception $e) {
+    error_log("Exception in paginator: ".$e->getMessage());
+        }
+}
 function addToCart(array $item, int $quantity) {
     if (!isset($_SESSION['ShoppingCartItems'])) $_SESSION['ShoppingCartItems'] = [];
 
@@ -224,6 +311,48 @@ function createCookieAndSession($key, $value, $days = 365){
     setcookie($key, $value, time() + (86400 * $days), "/");
     $_SESSION[$key] = $value;
 }
+
+function db() {
+    return TsunamiDatabaseFlow();
+}
+
+/* ---------- GENERIC HELPERS ---------- */
+
+function writeCookies(array $xmljson, int $days = 30) {
+    $expiry = time() + (86400 * $days);
+    foreach ($xmljson as $key => $value) {
+        setcookie($key, $value, $expiry);
+    }
+}
+
+
+
+function insertRow(string $table, array $columns) {
+    $keys = array_keys($columns);
+    $placeholders = array_map(fn($k) => ":$k", $keys);
+
+    $sql = "INSERT INTO {$table} (" . implode(",", $keys) . ")
+            VALUES (" . implode(",", $placeholders) . ")";
+
+    $pdo = db();
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute(array_combine($placeholders, array_values($columns)));
+}
+
+/* ---------- CSV WRITER ---------- */
+function appendToCSV(string $file, array $values, array $header = []) {
+    $exists = file_exists($file);
+    $f = fopen($file, $exists ? "a" : "w");
+
+    if (!$exists && $header) {
+        fputcsv($f, $header);
+    }
+
+    fputcsv($f, $values);
+    fclose($f);
+}
+
+/* ---------- MAIN FUNCTION ---------- */
 
 // --- Stripe Helper ---
 function getStripeClient($secretKey): StripeClient {
