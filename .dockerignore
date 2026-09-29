@@ -28,10 +28,6 @@ python/.venv
 *.pyc
 .pytest_cache
 
-# Node (if present)
-node_modules
-npm-debug.log
-
 # Env and secrets
 .env
 .env.*
