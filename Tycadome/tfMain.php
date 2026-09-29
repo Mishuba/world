@@ -13,13 +13,15 @@ $allowed_origins = [
     "https://world-l87q.onrender.com"
 ];
 
-if (in_array($_SERVER[$allowed_origins])) {
-    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN'] );
-}
+session_start();
 
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
+
+if (in_array($_SERVER[$allowed_origins])) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN'] );
+}
 
 // Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -38,7 +40,7 @@ ini_set('display_startup_errors', 1);
 // ============================
 // SESSION
 // ============================
-session_start();
+
 
 //require_once __DIR__ . "/Function/functions.php";
 //require_once __DIR__ . "../vendor/autoload.php";
