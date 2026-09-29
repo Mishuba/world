@@ -8,7 +8,7 @@ ini_set('display_startup_errors', 1);
 // --- Required files & namespaces ---
 //require_once "Arrays.php";
 require_once __DIR__ . "/../Variables/tycadomeVariables.php";
-require_once __DIR__ . "/../../../vendor/autoload.php";
+require_once __DIR__ . "/../../vendor/autoload.php";
 
 use Aws\Exception\AwsException;
 use Aws\Credentials\Credentials;
