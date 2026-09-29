@@ -13,7 +13,7 @@ $allowed_origins = [
     "https://world-l87q.onrender.com"
 ];
 
-if (in_array($_SERVER['HTTP_ORIGIN'] , $allowed_origins)) {
+if (in_array($_SERVER[$allowed_origins])) {
     header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN'] );
 }
 
