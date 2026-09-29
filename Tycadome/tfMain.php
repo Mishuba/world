@@ -43,8 +43,8 @@ session_start();
 //require_once __DIR__ . "/Function/functions.php";
 //require_once __DIR__ . "../vendor/autoload.php";
 require_once __DIR__ . "/../src/Printful.php";
-require_once __DIR__ . "/../src/RadioPlaylist.php";
 
+//$TycadomeBackend = new TycadomeServer("testing");
 //Printful
 $myProductsFr = $_SESSION['PrintfulItems'] ?? BasicPrintfulRequest();
 if (!isset($myProductsFr['result']) || !is_array($myProductsFr['result'])) {

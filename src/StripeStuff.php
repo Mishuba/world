@@ -19,7 +19,8 @@ use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
 use Stripe\Exception\ApiErrorException;
 
-if (!defined('STRIPE_SECRET_KEY')) die("Error: STRIPE_SECRET_KEY not defined");
+if (!defined('STRIPE_SECRET_KEY'))
+    die("Error: STRIPE_SECRET_KEY not defined");
 $stripe = new StripeClient(STRIPE_SECRET_KEY ?? '');
 
 $action = $xmljson['action'] ?? '';

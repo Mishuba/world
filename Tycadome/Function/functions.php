@@ -30,12 +30,10 @@ session_set_cookie_params([
 } else {
 
 }
-
-
 // --- Required files & namespaces ---
 //require_once "Arrays.php";
 require_once __DIR__ . "/../Variables/tycadomeVariables.php";
-require_once __DIR__ . "/vendor/autoload.php";
+require_once __DIR__ . "/../../../world/vendor/autoload.php";
 
 use Aws\Exception\AwsException;
 use Aws\Credentials\Credentials;
@@ -53,17 +51,6 @@ $nanoU = NANO_USER;
 $nanoPsw = NANO_PSW;
 $nanoDSN = "pgsql:host=$nanoH;port=$nanoP;dbname=$nanoDb;sslmode=require;channel_binding=require";
 
-// --- Input ---
-$TfRcI = @file_get_contents("php://input");
-$UseThis = json_decode($TfRcI);
-
-// --- Utility Functions ---
-function getIpAddress() {
-    if (!empty($_SERVER["HTTP_CLIENT_IP"])) return $_SERVER["HTTP_CLIENT_IP"];
-    if (!empty($_SERVER["HTTP_X_FORWARDED_FOR"])) return $_SERVER["HTTP_X_FORWARDED_FOR"];
-    return $_SERVER["REMOTE_ADDR"];
-}
-
 function LogOut() {
     $_SESSION = [];
     session_unset();
@@ -71,19 +58,6 @@ function LogOut() {
     session_write_close();
     header("Location: index.php");
     exit;
-}
-
-function TsunamiInput($data) {
-    return htmlspecialchars(trim($data), ENT_QUOTES, 'UTF-8');
-}
-
-function validate_input($inputName, $inputArray, $type = 'string') {
-    if (!isset($inputArray[$inputName]) || empty($inputArray[$inputName])) return null;
-    $value = TsunamiInput($inputArray[$inputName]);
-    if ($type === 'string' && preg_match("/^[a-zA-Z0-9-']+$/", $value)) return $value;
-    if ($type === 'number') return filter_var($value, FILTER_VALIDATE_INT);
-    if ($type === 'email') return filter_var($value, FILTER_VALIDATE_EMAIL);
-    return $value;
 }
 
 function handleDatabaseError($e){
@@ -94,50 +68,6 @@ function handleDatabaseError($e){
         file_put_contents("tferror.log", $e->getMessage() . "\n", FILE_APPEND);
         die("An error occurred. Please try again later.");
     }
-}
-
-function tycadome(string $id, string $type, string $action, array $meta, string $state, array $mode, array $payload) {
-return [
-            "id" => $id,
-            "type" => $type,
-            "action" => $action,
-            "meta" => $meta,
-            "timestamp" => floor((microtime(true) * 1000) / 1000),
-            "state" => $state,
-            "mode" => $mode, //"async"
-            "payload" => $payload // {},
-        ];
-}
-function respond(array $data, bool $Tycadome = false, int $status = 200) {
-    header("Access-Control-Allow-Origin: https://tsunamiflow.club");
-    header("Access-Control-Allow-Credentials: true");
-    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
-    http_response_code($status);
-    header("Content-Type: application/json");
-        if ($Tycadome === true) {
-                $tf = tycadome(
-                    $data["id"],
-                    $data["type"],
-                    $data["action"],
-                    $data["meta"],
-                    $data["state"],
-                    $data["mode"],
-                    $data["payload"]
-                );
-            //json_encode($tf, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE | JSON_UNESCAPED_SLASHES);
-            echo json_encode($tf);
-        } else {
-            echo json_encode($data);
-        }
-    exit;
-}
-
-function isApiRequest() {
-    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-    return isset($_SERVER['HTTP_X_REQUESTED_WITH']) || isset($_SERVER['HTTP_X_REQUEST_TYPE'])
-        || str_contains($contentType, 'application/json')
-        || ($_SERVER['REQUEST_METHOD'] === 'POST');
 }
 
 function writeSession(array $data) {
@@ -163,7 +93,7 @@ function addSongsToArray($path, array &$array, int $index, $index2 = null, strin
     ]);
 } catch (Exception $e) {
     http_response_code(500);
-    respond(["error" => "Failed to initialize S3 client: " . $e->getMessage()]);
+    //respond(["error" => "Failed to initialize S3 client: " . $e->getMessage()]);
     exit;
 }
     if (!$s3) {
@@ -307,25 +237,11 @@ function TsunamiDatabaseFlow(){
     return $pdo;
 }
 
-function createCookieAndSession($key, $value, $days = 365){
-    setcookie($key, $value, time() + (86400 * $days), "/");
-    $_SESSION[$key] = $value;
-}
-
 function db() {
     return TsunamiDatabaseFlow();
 }
 
 /* ---------- GENERIC HELPERS ---------- */
-
-function writeCookies(array $xmljson, int $days = 30) {
-    $expiry = time() + (86400 * $days);
-    foreach ($xmljson as $key => $value) {
-        setcookie($key, $value, $expiry);
-    }
-}
-
-
 
 function insertRow(string $table, array $columns) {
     $keys = array_keys($columns);
@@ -487,7 +403,9 @@ function InputIntoDatabase(
 
         // --- Session & Cookies ---
         foreach (["TfAccess" => ucfirst($membership), "Username" => $userName, "Birthday" => $birthdate,
-                  "Gender" => $gender, "Nickname" => $nickName, "Email" => $email] as $k=>$v) createCookieAndSession($k, $v);
+                  "Gender" => $gender, "Nickname" => $nickName, "Email" => $email] as $k=>$v) {
+//createCookieAndSession($k, $v);
+                  } 
 
         // --- Additional inserts for Regular/VIP/Team members ---
         $tableMap = [
@@ -537,8 +455,8 @@ function Login() {
     $tfPassword = $_POST["NavPassword"] ?? $_REQUEST["phpnpsw"] ?? null;
     if (!$tfUsername || !$tfPassword) return;
 
-    $tfUsername = validate_input("NavUserName", $_POST ?? $_REQUEST);
-    $tfPassword = validate_input("NavPassword", $_POST ?? $_REQUEST);
+    //$tfUsername = validate_input("NavUserName", $_POST ?? $_REQUEST);
+    //$tfPassword = validate_input("NavPassword", $_POST ?? $_REQUEST);
 
     try {
         $pdo = TsunamiDatabaseFlow();
