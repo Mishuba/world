@@ -35,8 +35,11 @@ header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With");
 
-if (in_array($_SERVER[$allowed_origins])) {
-    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN'] );
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+if (in_array($origin, $allowed_origins, true)) {
+    header("Access-Control-Allow-Origin: " . $origin);
+    header("Vary: Origin");
 }
 
 // Handle preflight requests
