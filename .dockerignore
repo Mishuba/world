@@ -1,0 +1,51 @@
+# Version control
+.git
+.gitignore
+
+# PHP
+vendor
+composer.lock
+
+# .NET build output
+vbnet/bin
+vbnet/obj
+**/bin/Debug
+**/bin/Release
+*.user
+.vs
+
+# Java build output
+java/target
+java/.mvn/wrapper/maven-wrapper.jar
+java/build
+java/.gradle
+*.class
+
+# Python
+python/venv
+python/.venv
+**/__pycache__
+*.pyc
+.pytest_cache
+
+# Node (if present)
+node_modules
+npm-debug.log
+
+# Env and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Docker and docs
+Dockerfile
+.dockerignore
+docker-compose*.yml
+*.md
