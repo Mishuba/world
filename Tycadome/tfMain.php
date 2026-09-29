@@ -1,4 +1,5 @@
 <?php
+/*
 if (session_status() === PHP_SESSION_NONE) {
 session_set_cookie_params([
     'lifetime' => 0,
@@ -13,6 +14,7 @@ session_start();
 } else {
 
 }
+*/
 /*
 //server listens on this port below
 const PORT = process.env.PORT || 3000;
