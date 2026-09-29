@@ -19,11 +19,11 @@ use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\CardException;
 
 // --- NanoTech Database Credentials ---
-$nanoH = NANO_HOST;
-$nanoP = NANO_PORT;
-$nanoDb = NANO_DB;
-$nanoU = NANO_USER;
-$nanoPsw = NANO_PSW;
+$nanoH = getenv(NANO_HOST);
+$nanoP = getenv(NANO_PORT);
+$nanoDb = getenv(NANO_DB);
+$nanoU = getenv(NANO_USER);
+$nanoPsw = getenv(NANO_PSW);
 $nanoDSN = "pgsql:host=$nanoH;port=$nanoP;dbname=$nanoDb;sslmode=require;channel_binding=require";
 
 function LogOut() {
