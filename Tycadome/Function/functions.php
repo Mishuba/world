@@ -467,7 +467,7 @@ function Login() {
 // --- Printful functions ---
 function BasicPrintfulRequest() {
     $ch = curl_init('https://api.printful.com/store/products');
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . PRINTFUL_API_KEY]);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . getenv("PRINTFUL_API_KEY")]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     $response = curl_exec($ch);
@@ -480,8 +480,9 @@ function BasicPrintfulRequest() {
 
 function PrintfulProductionDescription($productId) {
     $ch = curl_init("https://api.printful.com/store/products/$productId");
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . PRINTFUL_API_KEY]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . getenv("PRINTFUL_API_KEY")]);
+    curl_setopt($ch,
+ CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
     curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     if (curl_errno($ch)) { curl_close($ch); return ['result'=>[]]; }
@@ -500,7 +501,7 @@ function NPOtfTS(array $orderData) {
     $ch = curl_init('https://api.printful.com/orders');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . PRINTFUL_API_KEY,
+        'Authorization: Bearer ' . getenv("PRINTFUL_API_KEY"),
         'Content-Type: application/json'
     ]);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -516,7 +517,7 @@ function NPOtfTS(array $orderData) {
 }
 
 function CreatePrintfulOrder(array $cartItems, array $customer) {
-    $apiKey = PRINTFUL_API_KEY;
+    $apiKey = getenv("PRINTFUL_API_KEY");
     if (!$apiKey) return ['error' => 'Missing Printful API key'];
 
     $order = [
@@ -542,7 +543,7 @@ function CreatePrintfulOrder(array $cartItems, array $customer) {
 
     $ch = curl_init('https://api.printful.com/orders');
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . PRINTFUL_API_KEY,
+        'Authorization: Bearer ' . getenv("PRINTFUL_API_KEY"),
         'Content-Type: application/json'
     ]);
     curl_setopt($ch, CURLOPT_POST, true);
