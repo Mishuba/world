@@ -35,7 +35,7 @@ function LogOut() {
     exit;
 }
 
-    public function isApiRequest()
+function isApiRequest()
     {
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
 
