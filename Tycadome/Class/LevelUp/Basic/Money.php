@@ -530,6 +530,22 @@ class BeginnerServer extends BasicServer
             }
         }
     }
+    public function StripeCheckout()
+    {
+        if (($xmljson['type'] ?? '') === 'Stripe Checkout') {
+            $cartItems = $_SESSION['ShoppingCartItems'] ?? [];
+            if (empty($cartItems))
+                respond(['error' => 'Cart is empty'], 400);
+
+            $checkout = CreateStripeCheckout($cartItems, "$allowed_origins[2]/tfMain.php?type=Printful Checkout", "$allowed_origins[2]/cancelled.php");
+            respond([
+                'success' => !empty($checkout['success']),
+                'checkout_url' => $checkout['url'] ?? null,
+                'session_id' => $checkout['id'] ?? null,
+                'error' => $checkout['error'] ?? null
+            ]);
+        }
+    }
 }
 
 ?>
