@@ -54,16 +54,12 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
-// ============================
-// SESSION
-// ============================
-
-
 //require_once __DIR__ . "/Function/functions.php";
 //require_once __DIR__ . "../vendor/autoload.php";
 
 //require_once __DIR__ . "/Class/Members.php";
 //$TycadomeBackend = new TycadomeServer("testing");
+
 /*
 //Printful
 $myProductsFr = $_SESSION['PrintfulItems'] ?? BasicPrintfulRequest();
