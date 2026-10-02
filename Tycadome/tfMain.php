@@ -61,12 +61,14 @@ ini_set('display_startup_errors', 1);
 
 //require_once __DIR__ . "/Function/functions.php";
 //require_once __DIR__ . "../vendor/autoload.php";
-require_once __DIR__ . "/../src/Printful.php";
 
+//require_once __DIR__ . "/Class/Members.php";
 //$TycadomeBackend = new TycadomeServer("testing");
+/*
 //Printful
 $myProductsFr = $_SESSION['PrintfulItems'] ?? BasicPrintfulRequest();
 if (!isset($myProductsFr['result']) || !is_array($myProductsFr['result'])) {
     $myProductsFr['result'] = [];
 }
 $showSuccess = true;
+*/
