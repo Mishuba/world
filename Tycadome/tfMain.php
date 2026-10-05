@@ -66,7 +66,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
         break;
 
 }
-$TycadomeBackend
 
 /*
 //Printful
@@ -76,3 +75,4 @@ if (!isset($myProductsFr['result']) || !is_array($myProductsFr['result'])) {
 }
 $showSuccess = true;
 */
+?>
