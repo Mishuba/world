@@ -1,13 +1,14 @@
 <?php
-
-use Stripe\Stripe;
+//use Stripe\Stripe;
 use Stripe\Webhook;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
 use Stripe\Exception\ApiErrorException;
+use Stripe\Exception\CardException;
 
 class BeginnerServer extends BasicServer
 {
+    public StripeClient $stripe;
     public function getTaxIdType($countryCode): ?string
     {
         $taxIdTypes = [
@@ -20,20 +21,15 @@ class BeginnerServer extends BasicServer
 
     // --- Main Stripe Payment Function ---
     public function WhichPaymentWeDoing(
-        StripeClient $stripe,
-        bool $oneTimePayment,
-        string $paymentMethodId,
-        float $paymentAmount,
-        array $customerData, // ['email','name','description','countryCode','taxId']
-        string $type = "store" // store, donation, subscription
+
     ): string {
         try {
             // Step 1: Create customer
-            $customer = $stripe->customers->create([
-                "email" => $customerData['email'],
-                "name" => $customerData['name'],
-                "description" => $customerData['description'] ?? "",
-                "address" => ["country" => $customerData['countryCode']]
+            $customer = $this->stripe->customers->create([
+                "email" => $this->customerData['email'],
+                "name" => $this->customerData['name'],
+                "description" => $this->customerData['description'] ?? "",
+                "address" => ["country" => $this->customerData['countryCode']]
             ]);
 
             if (!$customer || !isset($customer->id)) {
@@ -41,32 +37,32 @@ class BeginnerServer extends BasicServer
             }
 
             // Set default payment method
-            $stripe->customers->update($customer->id, [
-                "invoice_settings" => ["default_payment_method" => $paymentMethodId]
+            $this->stripe->customers->update($customer->id, [
+                "invoice_settings" => ["default_payment_method" => $this->paymentMethodId]
             ]);
 
             // Add tax ID if provided
-            if (!empty($customerData['taxId'])) {
-                $taxType = getTaxIdType($customerData['countryCode']);
+            if (!empty($this->customerData['taxId'])) {
+                $taxType = $this->getTaxIdType($this->customerData['countryCode']);
                 if ($taxType) {
-                    $stripe->customers->createTaxId($customer->id, [
+                    $this->stripe->customers->createTaxId($customer->id, [
                         "type" => $taxType,
-                        "value" => $customerData['taxId']
+                        "value" => $this->customerData['taxId']
                     ]);
                 }
             }
 
             // Step 2: Create PaymentIntent or Subscription
-            if ($oneTimePayment) {
-                $intent = $stripe->paymentIntents->create([
-                    "amount" => $paymentAmount,
+            if ($this->oneTimePayment) {
+                $intent = $this->stripe->paymentIntents->create([
+                    "amount" => $this->paymentAmount,
                     "currency" => "usd",
-                    "payment_method" => $paymentMethodId,
+                    "payment_method" => $this->paymentMethodId,
                     "confirmation_method" => "manual",
                     "confirm" => true,
                     "automatic_payment_methods" => ["enabled" => true],
                     "off_session" => true,
-                    "receipt_email" => $customerData['email'],
+                    "receipt_email" => $this->customerData['email'],
                     "setup_future_usage" => "off_session"
                 ]);
 
@@ -74,9 +70,9 @@ class BeginnerServer extends BasicServer
                 $clientSecret = $intent->client_secret ?? null;
 
             } else {
-                $subscription = $stripe->subscriptions->create([
+                $subscription = $this->stripe->subscriptions->create([
                     "customer" => $customer->id,
-                    "items" => [["price" => $paymentAmount]],
+                    "items" => [["price" => $this->paymentAmount]],
                     "collection_method" => "charge_automatically",
                     "payment_behavior" => "default_incomplete",
                     "expand" => ["latest_invoice.payment_intent"],
@@ -103,7 +99,7 @@ class BeginnerServer extends BasicServer
                 "requires_source_action" => $status === "requires_payment_method",
                 "message" => $messages[$status] ?? "Unknown status",
                 "payment_intent_client_secret" => $clientSecret,
-                "next_step" => $status === "succeeded" ? ($type === "store" ? "Printful_Order" : "none") : null,
+                "next_step" => $status === "succeeded" ? ($this->type === "store" ? "Printful_Order" : "none") : null,
                 "error" => $status === "succeeded" ? "no error" : null
             ]);
 
@@ -117,7 +113,7 @@ class BeginnerServer extends BasicServer
     // -------- Stripe Checkout Session --------
     public function CreateStripeCheckout(array $cartItems, string $successUrl, string $cancelUrl)
     {
-        $stripe = new StripeClient(STRIPE_SECRET_KEY);
+        $this->stripe = new StripeClient(GETENV("STRIPE_SECRET_KEY"));
         $lineItems = [];
 
         foreach ($cartItems as $item) {
@@ -138,7 +134,7 @@ class BeginnerServer extends BasicServer
             return ['success' => false, 'error' => 'No valid items in cart'];
 
         try {
-            $session = $stripe->checkout->sessions->create([
+            $session = $this->stripe->checkout->sessions->create([
                 'payment_method_types' => ['card'],
                 'mode' => 'payment',
                 'line_items' => $lineItems,
@@ -181,14 +177,14 @@ class BeginnerServer extends BasicServer
     {
         if (!defined('STRIPE_SECRET_KEY'))
             die("Error: STRIPE_SECRET_KEY not defined");
-        $stripe = new StripeClient(STRIPE_SECRET_KEY ?? '');
+        $this->stripe = new StripeClient(GETENV("STRIPE_SECRET_KEY") ?? '');
 
-        $action = $xmljson['action'] ?? '';
+        $action = $this->xmljson['action'] ?? '';
 
         try {
-            $saveCustomer = $xmljson['saveCustomer'] ?? false;
-            $customerId = $xmljson['customerId'] ?? null;
-            $email = $xmljson['email'] ?? null;
+            $saveCustomer = $this->xmljson['saveCustomer'] ?? false;
+            $customerId = $this->xmljson['customerId'] ?? null;
+            $email = $this->xmljson['email'] ?? null;
             $customer = null;
 
             // Reuse or create customer if needed
@@ -206,8 +202,8 @@ class BeginnerServer extends BasicServer
             switch ($action) {
 
                 case 'createPaymentIntent':
-                    $amount = $xmljson['amount']; // in cents
-                    $currency = $xmljson['currency'] ?? 'usd';
+                    $amount = $this->xmljson['amount']; // in cents
+                    $currency = $this->xmljson['currency'] ?? 'usd';
 
                     $paymentIntent = \Stripe\PaymentIntent::create([
                         'amount' => $amount,
@@ -223,7 +219,7 @@ class BeginnerServer extends BasicServer
                     break;
 
                 case 'createSubscription':
-                    $priceId = $xmljson['priceId']; // Stripe Price ID
+                    $priceId = $this->xmljson['priceId']; // Stripe Price ID
 
                     if (!$customer) {
                         // Create customer if not already done
@@ -308,9 +304,9 @@ class BeginnerServer extends BasicServer
         try {
             if (!defined('STRIPE_SECRET_KEY'))
                 die("Error: STRIPE_SECRET_KEY not defined");
-            $stripe = new StripeClient(STRIPE_SECRET_KEY ?? '');
+            $this->stripe = new StripeClient(GETENV("STRIPE_SECRET_KEY") ?? '');
 
-            $stripe_webhook_event = Webhook::constructEvent($xml, $stripe_sig_header, WebhookSigningSecret);
+            $stripe_webhook_event = Webhook::constructEvent($this->xml, $stripe_sig_header, WebhookSigningSecret);
 
         } catch (\UnexpectedValueException $e) {
             http_response_code(400);
@@ -474,7 +470,7 @@ class BeginnerServer extends BasicServer
                         curl_setopt($SendToTfClub, CURLOPT_POST, true);
 
                         $tfSubType = $metadataArray["membership"];
-                        SendToTfClub($SendToTfClub, "TsunamiFlowClubStripeToken", $tfSubType, $metadataArray["FirstName"], $metadataArray["LastName"], $metadataArray["LastName"], $metadataArray["NickName"], $metadataArray["Gender"], $metadataArray["Birthday"], $metadataArray["Email"], $metadataArray["Username"], $metadataArray["Password"], $metadataArray["ChineseZodiacSign"], $metadataArray["WesternZodiacSign"], $metadataArray["SpiritAnimal"], $metadataArray["CelticTreeZodiacSign"], $metadataArray["NativeAmericanZodiacSign"], $metadataArray["VedicAstrologySign"], $metadataArray["GuardianAngel"], $metadataArray["ChineseElement"], $metadataArray["EyeColorMeaning"], $metadataArray["GreekMythologyArchetype"], $metadataArray["NorseMythologyPatronDeity"], $metadataArray["EgyptianZodiacSign"], $metadataArray["MayanZodiacSign"], $metadataArray["LoveLanguage"], $metadataArray["Birthstone"], $metadataArray["BirthFlower"], $metadataArray["BloodType"], $metadataArray["AttachmentStyle"], $metadataArray["CharismaType"], $metadataArray["BusinessPersonality"], $metadataArray["DISC"], $metadataArray["SocionicsType"], $metadataArray["LearningStyle"], $metadataArray["FinancialPersonalityType"], $metadataArray["PrimaryMotivationStyle"], $metadataArray["CreativeStyle"], $metadataArray["ConflictManagementStyle"], $metadataArray["TeamRolePreference"]);
+                        $this->SendToTfClub($SendToTfClub, "TsunamiFlowClubStripeToken", $tfSubType, $metadataArray["FirstName"], $metadataArray["LastName"], $metadataArray["LastName"], $metadataArray["NickName"], $metadataArray["Gender"], $metadataArray["Birthday"], $metadataArray["Email"], $metadataArray["Username"], $metadataArray["Password"], $metadataArray["ChineseZodiacSign"], $metadataArray["WesternZodiacSign"], $metadataArray["SpiritAnimal"], $metadataArray["CelticTreeZodiacSign"], $metadataArray["NativeAmericanZodiacSign"], $metadataArray["VedicAstrologySign"], $metadataArray["GuardianAngel"], $metadataArray["ChineseElement"], $metadataArray["EyeColorMeaning"], $metadataArray["GreekMythologyArchetype"], $metadataArray["NorseMythologyPatronDeity"], $metadataArray["EgyptianZodiacSign"], $metadataArray["MayanZodiacSign"], $metadataArray["LoveLanguage"], $metadataArray["Birthstone"], $metadataArray["BirthFlower"], $metadataArray["BloodType"], $metadataArray["AttachmentStyle"], $metadataArray["CharismaType"], $metadataArray["BusinessPersonality"], $metadataArray["DISC"], $metadataArray["SocionicsType"], $metadataArray["LearningStyle"], $metadataArray["FinancialPersonalityType"], $metadataArray["PrimaryMotivationStyle"], $metadataArray["CreativeStyle"], $metadataArray["ConflictManagementStyle"], $metadataArray["TeamRolePreference"]);
                         curl_setopt($SendToTfClub, CURLOPT_RETURNTRANSFER, true);
                         $response = curl_exec($SendToTfClub);
                         curl_close($SendToTfClub);
@@ -700,13 +696,13 @@ class BeginnerServer extends BasicServer
     }
     public function StripeCheckout()
     {
-        if (($xmljson['type'] ?? '') === 'Stripe Checkout') {
+        if (($this->xmljson['type'] ?? '') === 'Stripe Checkout') {
             $cartItems = $_SESSION['ShoppingCartItems'] ?? [];
             if (empty($cartItems))
-                respond(['error' => 'Cart is empty'], 400);
+                $this->respond(['error' => 'Cart is empty'], 400);
 
-            $checkout = CreateStripeCheckout($cartItems, "$allowed_origins[2]/tfMain.php?type=Printful Checkout", "$allowed_origins[2]/cancelled.php");
-            respond([
+            $checkout = $this->CreateStripeCheckout($cartItems, "$this->allowed_origins[2]/tfMain.php?type=Printful Checkout", "$this->allowed_origins[2]/cancelled.php");
+            $this->respond([
                 'success' => !empty($checkout['success']),
                 'checkout_url' => $checkout['url'] ?? null,
                 'session_id' => $checkout['id'] ?? null,

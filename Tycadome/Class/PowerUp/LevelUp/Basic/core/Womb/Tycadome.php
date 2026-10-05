@@ -25,6 +25,12 @@ class TycadomeServer
     public $nanoPsw;
     public $nanoDSN;
 
+    public bool $oneTimePayment;
+    public string $paymentMethodId;
+    public float $paymentAmount;
+    public array $customerData; // ['email','name','description','countryCode','taxId']
+    public string $type = "store"; // store, donation, subscription
+
     protected \SplObjectStorage $clients;
     protected array $ffmpeg = []; // streamKey => [process, stdin]
     protected array $restream = []; // streamKey => [process]
