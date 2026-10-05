@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . "/Womb/Tycadome.php";
 
-require_once __DIR__ . "/../../../../vendor/autoload.php";
+require_once __DIR__ . "/../../../../../../vendor/autoload.php";
 
 use Aws\Exception\AwsException;
 use Aws\Credentials\Credentials;
