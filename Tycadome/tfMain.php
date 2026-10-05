@@ -52,7 +52,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
 //require_once __DIR__ . "/../routes/store.php";
-require_once __DIR__ . "/Class/Members.php";
+require_once __DIR__ . "/Class/Websocket.php";
 
 $TycadomeBackend = new BasicServer("testing");
 
