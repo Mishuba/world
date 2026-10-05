@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . "/womb/Tycadome.php";
+require_once __DIR__ . "/Womb/Tycadome.php";
 
 require_once __DIR__ . "/../../../../../vendor/autoload.php";
 
