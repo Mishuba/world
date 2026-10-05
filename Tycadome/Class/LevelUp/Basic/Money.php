@@ -8,6 +8,174 @@ use Stripe\Exception\ApiErrorException;
 
 class BeginnerServer extends BasicServer
 {
+    public function getTaxIdType($countryCode): ?string
+    {
+        $taxIdTypes = [
+            "US" => "us_ein",
+            "CA" => "ca_bn",
+            "GB" => "gb_vat",
+        ];
+        return $taxIdTypes[$countryCode] ?? null;
+    }
+
+    // --- Main Stripe Payment Function ---
+    public function WhichPaymentWeDoing(
+        StripeClient $stripe,
+        bool $oneTimePayment,
+        string $paymentMethodId,
+        float $paymentAmount,
+        array $customerData, // ['email','name','description','countryCode','taxId']
+        string $type = "store" // store, donation, subscription
+    ): string {
+        try {
+            // Step 1: Create customer
+            $customer = $stripe->customers->create([
+                "email" => $customerData['email'],
+                "name" => $customerData['name'],
+                "description" => $customerData['description'] ?? "",
+                "address" => ["country" => $customerData['countryCode']]
+            ]);
+
+            if (!$customer || !isset($customer->id)) {
+                return json_encode(["error" => "Failed to create customer"]);
+            }
+
+            // Set default payment method
+            $stripe->customers->update($customer->id, [
+                "invoice_settings" => ["default_payment_method" => $paymentMethodId]
+            ]);
+
+            // Add tax ID if provided
+            if (!empty($customerData['taxId'])) {
+                $taxType = getTaxIdType($customerData['countryCode']);
+                if ($taxType) {
+                    $stripe->customers->createTaxId($customer->id, [
+                        "type" => $taxType,
+                        "value" => $customerData['taxId']
+                    ]);
+                }
+            }
+
+            // Step 2: Create PaymentIntent or Subscription
+            if ($oneTimePayment) {
+                $intent = $stripe->paymentIntents->create([
+                    "amount" => $paymentAmount,
+                    "currency" => "usd",
+                    "payment_method" => $paymentMethodId,
+                    "confirmation_method" => "manual",
+                    "confirm" => true,
+                    "automatic_payment_methods" => ["enabled" => true],
+                    "off_session" => true,
+                    "receipt_email" => $customerData['email'],
+                    "setup_future_usage" => "off_session"
+                ]);
+
+                $status = $intent->status;
+                $clientSecret = $intent->client_secret ?? null;
+
+            } else {
+                $subscription = $stripe->subscriptions->create([
+                    "customer" => $customer->id,
+                    "items" => [["price" => $paymentAmount]],
+                    "collection_method" => "charge_automatically",
+                    "payment_behavior" => "default_incomplete",
+                    "expand" => ["latest_invoice.payment_intent"],
+                    "off_session" => true
+                ]);
+
+                $intent = $subscription->latest_invoice->payment_intent ?? null;
+                $status = $intent->status ?? "unknown";
+                $clientSecret = $intent->client_secret ?? null;
+            }
+
+            $messages = [
+                "succeeded" => "Payment successful. Thank you!",
+                "requires_action" => "Verification required to complete payment.",
+                "requires_payment_method" => "Payment method issue. Try again.",
+                "requires_capture" => "Bank requires confirmation.",
+                "canceled" => "Payment failed. Try later."
+            ];
+
+            return json_encode([
+                "success" => $status === "succeeded",
+                "requires_action" => $status === "requires_action",
+                "requires_confirmation" => $status === "requires_capture",
+                "requires_source_action" => $status === "requires_payment_method",
+                "message" => $messages[$status] ?? "Unknown status",
+                "payment_intent_client_secret" => $clientSecret,
+                "next_step" => $status === "succeeded" ? ($type === "store" ? "Printful_Order" : "none") : null,
+                "error" => $status === "succeeded" ? "no error" : null
+            ]);
+
+        } catch (CardException | ApiErrorException $e) {
+            return json_encode(["error" => $e->getMessage()]);
+        } catch (Exception $e) {
+            return json_encode(["error" => "Unexpected error: " . $e->getMessage()]);
+        }
+    }
+
+    // -------- Stripe Checkout Session --------
+    public function CreateStripeCheckout(array $cartItems, string $successUrl, string $cancelUrl)
+    {
+        $stripe = new StripeClient(STRIPE_SECRET_KEY);
+        $lineItems = [];
+
+        foreach ($cartItems as $item) {
+            $price = floatval($item['price'] ?? 0);
+            if ($price <= 0)
+                continue;
+            $lineItems[] = [
+                'price_data' => [
+                    'currency' => 'usd',
+                    'unit_amount' => (int) ($price * 100), // Stripe in cents
+                    'product_data' => ['name' => $item['name'] . ' - ' . $item['variant_name']]
+                ],
+                'quantity' => $item['quantity']
+            ];
+        }
+
+        if (empty($lineItems))
+            return ['success' => false, 'error' => 'No valid items in cart'];
+
+        try {
+            $session = $stripe->checkout->sessions->create([
+                'payment_method_types' => ['card'],
+                'mode' => 'payment',
+                'line_items' => $lineItems,
+                'success_url' => $successUrl . '?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => $cancelUrl
+            ]);
+            return ['success' => true, 'url' => $session->url, 'id' => $session->id];
+        } catch (Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function addToCart(array $item, int $quantity)
+    {
+        if (!isset($_SESSION['ShoppingCartItems']))
+            $_SESSION['ShoppingCartItems'] = [];
+
+        $found = false;
+        foreach ($_SESSION['ShoppingCartItems'] as &$cartItem) {
+            if ($cartItem['variant_id'] === $item['variant_id']) {
+                $cartItem['quantity'] += $quantity;
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            $item['quantity'] = $quantity;
+            $_SESSION['ShoppingCartItems'][] = $item;
+        }
+
+        return ['item' => $item];
+    }
+
+    public function getStripeClient($secretKey): StripeClient
+    {
+        return new StripeClient($secretKey);
+    }
 
     public function StripeOne()
     {

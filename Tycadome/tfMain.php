@@ -47,18 +47,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// ============================
-// ERROR REPORTING (DEV)
-// ============================
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
-//require_once __DIR__ . "/Function/functions.php";
-//require_once __DIR__ . "../vendor/autoload.php";
+//require_once __DIR__ . "/../routes/store.php";
+require_once __DIR__ . "/Class/Members.php";
 
-//require_once __DIR__ . "/Class/Members.php";
-//$TycadomeBackend = new TycadomeServer("testing");
+$TycadomeBackend = new BasicServer("testing");
+
+switch ($_SERVER['REQUEST_METHOD']) {
+    case "fetchRadioSongs":
+        $TycadomeBackend::class::RadioPlaylist($_SERVER['REQUEST_METHOD'], "accessKey", "secretKey", "endpoint", "array");
+        break;
+
+    default:
+
+        break;
+
+}
+$TycadomeBackend
 
 /*
 //Printful
