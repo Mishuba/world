@@ -26,6 +26,7 @@ app.listen(PORT, "0.0.0.0", () => {
 $allowed_origins = [
     "https://tsunamiflow.club",
     "https://tsunamiflow.onrender.com",
+    "https://tsunamiflow.onrender.com
     "https://world-l87q.onrender.com"
 ];
 
