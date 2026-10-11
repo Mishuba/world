@@ -1,18 +1,5 @@
 <?php
 require_once __DIR__ . "/../../../../../../../../../../../vendor/autoload.php";
-
-use Aws\Exception\AwsException;
-use Aws\Credentials\Credentials;
-use Aws\S3\S3Client;
-
-use Stripe\Stripe;
-use Stripe\Webhook;
-use Stripe\StripeClient;
-use Stripe\Exception\ApiErrorException;
-use Stripe\Exception\CardException;
-use Stripe\Exception\SignatureVerificationException;
-
-
 class TycadomeServer
 {
     public $data;
@@ -29,13 +16,6 @@ class TycadomeServer
     public $nanoU;
     public $nanoPsw;
     public $nanoDSN;
-
-    public $loop;
-
-    public $port;
-
-    public $socket;
-
 
     public bool $oneTimePayment;
     public string $paymentMethodId;
@@ -76,12 +56,6 @@ class TycadomeServer
         $this->nanoU = getenv("NANO_USER");
         $this->nanoPsw = getenv("NANO_PSW");
         $this->nanoDSN = "pgsql:host=$this->nanoH;port=$this->nanoP;dbname=$this->nanoDb;sslmode=require;channel_binding=require";
-
-        $this->loop = Factory::create();
-
-        $this->port = getenv('PORT') ?: 8443;
-
-        $this->socket = new SocketServer('0.0.0.0:' . $this->port, $this->loop);
     }
 
     public function getIpAddress()

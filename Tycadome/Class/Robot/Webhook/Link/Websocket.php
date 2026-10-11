@@ -12,6 +12,12 @@ use React\Socket\Server as SocketServer;
 class TycadomeSocket extends TsunamiVideos implements MessageComponentInterface
 {
 
+    public $loop = Factory::create();
+
+    public $port = "8443";
+
+    public $socket = new SocketServer('0.0.0.0:' . $this->port, $this->loop);
+
     public function onOpen(ConnectionInterface $conn)
     {
         $origin = $conn->httpRequest->getHeader('Origin')[0] ?? '';

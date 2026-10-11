@@ -1,6 +1,10 @@
 <?php
 require_once __DIR__ . "/Womb/Tycadome.php";
 
+use Aws\Exception\AwsException;
+use Aws\Credentials\Credentials;
+use Aws\S3\S3Client;
+
 class BasicServer extends TycadomeServer
 {
 
