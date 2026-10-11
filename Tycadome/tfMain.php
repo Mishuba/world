@@ -26,6 +26,7 @@ app.listen(PORT, "0.0.0.0", () => {
 $allowed_origins = [
     "https://tsunamiflow.club",
     "https://tsunamiflow.onrender.com",
+    "https://tsunamiflow.onrender.com",
     "https://world-l87q.onrender.com"
 ];
 
@@ -52,7 +53,11 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
 //require_once __DIR__ . "/../routes/store.php";
+<<<<<<< HEAD
 require_once __DIR__ . "/Class/Detha.php";
+=======
+require_once __DIR__ . "/Class/Websocket.php";
+>>>>>>> 2931ad2b115a2e8ea31bf653397e0dc4bc861262
 
 $TycadomeBackend = new Detha();
 

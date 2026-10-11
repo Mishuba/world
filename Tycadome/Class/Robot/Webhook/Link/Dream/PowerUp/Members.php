@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . "/LevelUp/Printul.php";
+require_once __DIR__ . "/LevelUp/Printful.php";
 
 class TfMembers extends BeginnerStore
 {
