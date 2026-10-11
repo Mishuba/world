@@ -6,17 +6,13 @@ use Ratchet\ConnectionInterface;
 use Ratchet\Http\HttpServer;
 use Ratchet\WebSocket\WsServer;
 use Ratchet\Server\IoServer;
-use React\EventLoop\Factory;
-use React\Socket\Server as SocketServer;
 
 class TycadomeSocket extends TsunamiVideos implements MessageComponentInterface
 {
 
-    public $loop = Factory::create();
-
     public $port = "8443";
 
-    public $socket = new SocketServer('0.0.0.0:' . $this->port, $this->loop);
+    //public $wsServer = new IoServer(new HttpServer(new WsServer($TycadomeBackend)));
 
     public function onOpen(ConnectionInterface $conn)
     {

@@ -185,12 +185,6 @@ switch ($TycadomeBackend->isApiRequest()) {
         break;
 
     case "websocket":
-        new IoServer(
-            new HttpServer(new WsServer($TycadomeBackend)),
-            $this->socket,
-            $this->loop
-        );
-
         // Periodically reap dead FFmpeg processes
         $TycadomeBackend->loop->addPeriodicTimer(5, function () use ($TycadomeBackend) {
             foreach ($TycadomeBackend->getActiveFFmpegKeys() as $key) {
