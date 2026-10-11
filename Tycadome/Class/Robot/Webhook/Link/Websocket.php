@@ -1,15 +1,7 @@
 <?php
-require_once __DIR__ . "/PowerUp/Members.php";
+require_once __DIR__ . "/Dream/Video.php";
 
-use Ratchet\MessageComponentInterface;
-use Ratchet\ConnectionInterface;
-use Ratchet\Http\HttpServer;
-use Ratchet\WebSocket\WsServer;
-use Ratchet\Server\IoServer;
-use React\EventLoop\Factory;
-use React\Socket\Server as SocketServer;
-
-class TycadomeSocket extends TfMembers implements MessageComponentInterface
+class TycadomeSocket extends TsunamiVideos implements MessageComponentInterface
 {
 
     public function onOpen(ConnectionInterface $conn)
@@ -231,7 +223,7 @@ class TycadomeSocket extends TfMembers implements MessageComponentInterface
     }
 
 
-    protected function reapFFmpeg(string $key)
+    public function reapFFmpeg(string $key)
     {
         if (!isset($this->ffmpeg[$key]))
             return;

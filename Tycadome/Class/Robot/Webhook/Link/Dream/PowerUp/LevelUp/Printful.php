@@ -43,7 +43,7 @@ class BeginnerStore extends BasicServer
 
     public function getVariantandPrice($productId)
     {
-        $prod = PrintfulProductionDescription($productId);
+        $prod = $this->PrintfulProductionDescription($productId);
         return $prod['result'] ?? null; // Return full product
     }
 
@@ -73,10 +73,10 @@ class BeginnerStore extends BasicServer
     public function fetchPrintItems()
     {
         if (isset($_GET['fetch_printful_items'])) {
-            respond(['success' => true, 'items' => $_SESSION['PrintfulItems']['result'] ?? []]);
+            $this->respond(['success' => true, 'items' => $_SESSION['PrintfulItems']['result'] ?? []]);
         }
 
-        respond(['success' => true, 'message' => 'GET request received']);
+        $this->respond(['success' => true, 'message' => 'GET request received']);
     }
 
     public function addToPrintCart()
@@ -85,9 +85,9 @@ class BeginnerStore extends BasicServer
             $variantId = trim($_POST['product_id'] ?? '');
             $quantity = max(1, (int) ($_POST['StoreQuantity'] ?? 1));
             if (!$variantId)
-                respond(['error' => 'Missing product ID'], 400);
+                $this->respond(['error' => 'Missing product ID'], 400);
 
-            $myProducts = BasicPrintfulRequest();
+            $myProducts = $this->BasicPrintfulRequest();
             $_SESSION['PrintfulItems'] = $myProducts;
 
             $found = null;
@@ -110,10 +110,10 @@ class BeginnerStore extends BasicServer
                 }
             }
             if (!$found)
-                respond(['error' => 'Variant not found'], 404);
+                $this->respond(['error' => 'Variant not found'], 404);
 
-            $result = addToCart($found, $quantity);
-            respond(['success' => true, 'cart_count' => count($_SESSION['ShoppingCartItems']), 'item' => $result['item']]);
+            $result = $this->addToPrintCart($found, $quantity);
+            $this->respond(['success' => true, 'cart_count' => count($_SESSION['ShoppingCartItems']), 'item' => $result['item']]);
         }
     }
 
@@ -122,11 +122,11 @@ class BeginnerStore extends BasicServer
         if (isset($_GET['cart_action'])) {
             switch ($_GET['cart_action']) {
                 case 'view':
-                    respond(['success' => true, 'items' => $_SESSION['ShoppingCartItems'] ?? []]);
+                    $this->respond(['success' => true, 'items' => $_SESSION['ShoppingCartItems'] ?? []]);
                     break;
                 case 'clear':
                     $_SESSION['ShoppingCartItems'] = [];
-                    respond(['success' => true, 'message' => 'Cart cleared']);
+                    $this->respond(['success' => true, 'message' => 'Cart cleared']);
                     break;
             }
         }
@@ -184,12 +184,12 @@ class BeginnerStore extends BasicServer
         if (($xmljson['type'] ?? '') === 'Printful Checkout') {
             $cartItems = $_SESSION['ShoppingCartItems'] ?? [];
             if (empty($cartItems))
-                respond(['error' => 'Cart is empty'], 400);
+                $this->respond(['error' => 'Cart is empty'], 400);
 
-            $result = CreatePrintfulOrder($cartItems, $xmljson['customer'] ?? []);
+            $result = $this->CreatePrintfulOrder($cartItems, $xmljson['customer'] ?? []);
             if (!empty($result['success']))
                 unset($_SESSION['ShoppingCartItems']);
-            respond([
+            $this->respond([
                 'success' => !empty($result['success']),
                 'order' => $result['result'] ?? null,
                 'error' => $result['error'] ?? null

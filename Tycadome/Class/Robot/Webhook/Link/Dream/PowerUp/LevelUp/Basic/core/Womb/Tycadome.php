@@ -5,9 +5,20 @@ use Aws\Exception\AwsException;
 use Aws\Credentials\Credentials;
 use Aws\S3\S3Client;
 
+use Stripe\Stripe;
+use Stripe\Webhook;
 use Stripe\StripeClient;
 use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\CardException;
+use Stripe\Exception\SignatureVerificationException;
+
+use Ratchet\MessageComponentInterface;
+use Ratchet\ConnectionInterface;
+use Ratchet\Http\HttpServer;
+use Ratchet\WebSocket\WsServer;
+use Ratchet\Server\IoServer;
+use React\EventLoop\Factory;
+use React\Socket\Server as SocketServer;
 class TycadomeServer
 {
     public $data;
@@ -24,6 +35,13 @@ class TycadomeServer
     public $nanoU;
     public $nanoPsw;
     public $nanoDSN;
+
+    public $loop;
+
+    public $port;
+
+    public $socket;
+
 
     public bool $oneTimePayment;
     public string $paymentMethodId;
@@ -42,9 +60,9 @@ class TycadomeServer
         // 'instagram' => 'rtmp://rtmp.instagram.com:80/rtmp/XXXX',
     ];
 
-    public function __construct($t)
+    public function __construct()
     {
-        $this->data = $t;
+        //$this->data = $t;
         $this->xml = @file_get_contents("php://input");
         $this->xmljson = json_decode(file_get_contents("php://input"), true) ?? $_POST ?? [];
         $this->servermethod = $_SERVER['REQUEST_METHOD'];
@@ -52,6 +70,7 @@ class TycadomeServer
         $this->origin = $_SERVER['HTTP_ORIGIN'] ?? 'localhost';
         $this->allowed_origins = [
             "https://tsunamiflow.club",
+            "https://www.tsunamiflow.club",
             "https://tsunamiflow.onrender.com",
             "https://world-l87q.onrender.com"
         ];
@@ -63,6 +82,12 @@ class TycadomeServer
         $this->nanoU = getenv("NANO_USER");
         $this->nanoPsw = getenv("NANO_PSW");
         $this->nanoDSN = "pgsql:host=$this->nanoH;port=$this->nanoP;dbname=$this->nanoDb;sslmode=require;channel_binding=require";
+
+        $this->loop = Factory::create();
+
+        $this->port = getenv('PORT') ?: 8443;
+
+        $this->socket = new SocketServer('0.0.0.0:' . $this->port, $this->loop);
     }
 
     public function getIpAddress()

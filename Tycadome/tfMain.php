@@ -52,15 +52,168 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
 //require_once __DIR__ . "/../routes/store.php";
-require_once __DIR__ . "/Class/Members.php";
+require_once __DIR__ . "/Class/Detha.php";
 
-$TycadomeBackend = new BasicServer("testing");
+$TycadomeBackend = new Detha();
 
-switch ($_SERVER['REQUEST_METHOD']) {
+switch ($TycadomeBackend->isApiRequest()) {
     case "fetchRadioSongs":
-        $TycadomeBackend::class::RadioPlaylist($_SERVER['REQUEST_METHOD'], "accessKey", "secretKey", "endpoint", "array");
+
+        $TycadomeBackend->RadioPlaylist($_SERVER['REQUEST_METHOD'], getenv(""), getenv(""), getenv(""), "array");
         break;
 
+    case "x-request-type":
+    case "fetch_printful_items":
+        $requestType =
+            $_SERVER['HTTP_X_REQUEST_TYPE']
+            ?? ($_GET['type'] ?? null);
+
+        if ($requestType !== 'fetch_printful_items') {
+            http_response_code(400);
+            echo json_encode([
+                "error" => "Invalid Request Type"
+            ]);
+            ob_end_flush();
+            exit;
+        }
+
+        if (!defined('PRINTFUL_API_KEY') || empty(PRINTFUL_API_KEY)) {
+            http_response_code(500);
+
+            echo json_encode([
+                "error" => "PRINTFUL_API_KEY not defined"
+            ]);
+
+            ob_end_flush();
+            exit;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Fetch Products
+        |--------------------------------------------------------------------------
+        */
+
+        $productsResponse = $_SESSION['PrintfulItems'] ?? $TycadomeBackend->BasicPrintfulRequest();
+
+        if (
+            !is_array($productsResponse)
+            || isset($productsResponse['error'])
+            || !isset($productsResponse['result'])
+        ) {
+            http_response_code(500);
+
+            echo json_encode([
+                "error" => "Failed to fetch products",
+                "details" => $productsResponse
+            ]);
+
+            ob_end_flush();
+            exit;
+        }
+
+        $items = [];
+
+        foreach ($productsResponse['result'] as $product) {
+
+            // Validate product ID exists
+            if (empty($product['id'])) {
+                error_log("Warning: Product missing ID: " . json_encode($product));
+                continue;
+            }
+
+            $variantResponse = $TycadomeBackend->getVariantandPrice($product['id']);
+
+            $variants = [];
+
+            if (
+                is_array($variantResponse)
+                && !isset($variantResponse['error'])
+                && isset($variantResponse['result']['sync_variants'])
+            ) {
+
+                foreach (
+                    $variantResponse['result']['sync_variants']
+                    as $variant
+                ) {
+
+                    $image = null;
+
+                    if (!empty($variant['files'])) {
+
+                        foreach ($variant['files'] as $file) {
+
+                            if (!empty($file['preview_url'])) {
+                                $image = $file['preview_url'];
+                                break;
+                            }
+                        }
+                    }
+
+                    if (
+                        $image === null
+                        && !empty($product['thumbnail_url'])
+                    ) {
+                        $image = $product['thumbnail_url'];
+                    }
+
+                    $variants[] = [
+                        "variant_id" => $variant['id'] ?? null,
+                        "name" => $variant['name'] ?? '',
+                        "price" => $variant['retail_price'] ?? null,
+                        "sku" => $variant['sku'] ?? '',
+                        "image" => $image
+                    ];
+                }
+            }
+
+            $items[] = [
+                "product_id" => $product['id'] ?? null,
+                "name" => $product['name'] ?? '',
+                "description" => "no description",
+                "thumbnail" => $product['thumbnail_url'] ?? null,
+                "variants" => $variants
+            ];
+        }
+
+        $output = json_encode(
+            [
+                "items" => $items
+            ],
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+        );
+
+        if ($output === false) {
+            http_response_code(500);
+            echo json_encode([
+                "error" => "Failed to encode JSON response"
+            ]);
+            ob_end_flush();
+            exit;
+        }
+
+        $showSuccess = true;
+
+        echo $output;
+
+        ob_end_flush();
+        break;
+
+    case "websocket":
+        new IoServer(
+            new HttpServer(new WsServer($TycadomeBackend)),
+            $this->socket,
+            $this->loop
+        );
+
+        // Periodically reap dead FFmpeg processes
+        $TycadomeBackend->loop->addPeriodicTimer(5, function () use ($TycadomeBackend) {
+            foreach ($TycadomeBackend->getActiveFFmpegKeys() as $key) {
+                $TycadomeBackend->reapFFmpeg($key);
+            }
+        });
+        $TycadomeBackend->loop->run();
+        break;
     default:
 
         break;
@@ -68,11 +221,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
 }
 
 /*
-//Printful
-$myProductsFr = $_SESSION['PrintfulItems'] ?? BasicPrintfulRequest();
-if (!isset($myProductsFr['result']) || !is_array($myProductsFr['result'])) {
-    $myProductsFr['result'] = [];
-}
-$showSuccess = true;
+
 */
 ?>
