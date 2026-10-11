@@ -52,12 +52,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
-//require_once __DIR__ . "/../routes/store.php";
-<<<<<<< HEAD
 require_once __DIR__ . "/Class/Detha.php";
-=======
-require_once __DIR__ . "/Class/Websocket.php";
->>>>>>> 2931ad2b115a2e8ea31bf653397e0dc4bc861262
 
 $TycadomeBackend = new Detha();
 
