@@ -12,13 +12,7 @@ use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\CardException;
 use Stripe\Exception\SignatureVerificationException;
 
-use Ratchet\MessageComponentInterface;
-use Ratchet\ConnectionInterface;
-use Ratchet\Http\HttpServer;
-use Ratchet\WebSocket\WsServer;
-use Ratchet\Server\IoServer;
-use React\EventLoop\Factory;
-use React\Socket\Server as SocketServer;
+
 class TycadomeServer
 {
     public $data;

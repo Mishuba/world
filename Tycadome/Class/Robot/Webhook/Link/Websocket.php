@@ -1,6 +1,14 @@
 <?php
 require_once __DIR__ . "/Dream/Video.php";
 
+use Ratchet\MessageComponentInterface;
+use Ratchet\ConnectionInterface;
+use Ratchet\Http\HttpServer;
+use Ratchet\WebSocket\WsServer;
+use Ratchet\Server\IoServer;
+use React\EventLoop\Factory;
+use React\Socket\Server as SocketServer;
+
 class TycadomeSocket extends TsunamiVideos implements MessageComponentInterface
 {
 
