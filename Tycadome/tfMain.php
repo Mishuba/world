@@ -1,28 +1,4 @@
 <?php
-/*
-if (session_status() === PHP_SESSION_NONE) {
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path' => '/',
-    'domain' => '.tsunamiflow.club',
-    'secure' => true,
-    'httponly' => true,
-    'samesite' => 'None'
-]);
-
-session_start();
-} else {
-
-}
-*/
-/*
-//server listens on this port below
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server listening on ${PORT}`);
-});
-*/
 $allowed_origins = [
     "https://tsunamiflow.club",
     "https://tsunamiflow.onrender.com",
@@ -30,7 +6,22 @@ $allowed_origins = [
     "https://world-l87q.onrender.com"
 ];
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/../Database/Cookies/',
+        'domain' => 'https://world-l87q.onrender.com',
+        'secure' => true,
+        'httponly' => true,
+        'samesite' => 'None'
+    ]);
+
+    session_start();
+} else if (session_status() === PHP_SESSION_ACTIVE) {
+    // Session is already active, do nothing
+} else {
+    // Handle other session statuses if needed disabled
+}
 
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
@@ -87,12 +78,6 @@ switch ($TycadomeBackend->isApiRequest()) {
             ob_end_flush();
             exit;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Fetch Products
-        |--------------------------------------------------------------------------
-        */
 
         $productsResponse = $_SESSION['PrintfulItems'] ?? $TycadomeBackend->BasicPrintfulRequest();
 
@@ -219,8 +204,4 @@ switch ($TycadomeBackend->isApiRequest()) {
         break;
 
 }
-
-/*
-
-*/
 ?>
