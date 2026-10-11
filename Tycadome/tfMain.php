@@ -140,8 +140,7 @@ switch ($TycadomeBackend->isApiRequest()) {
         $output = json_encode(
             [
                 "items" => $items
-            ],
-            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+            ]
         );
 
         if ($output === false) {
