@@ -54,29 +54,6 @@ switch ($TycadomeBackend->isApiRequest()) {
 
     case "x-request-type":
     case "fetch_printful_items":
-        $requestType =
-            $_SERVER['HTTP_X_REQUEST_TYPE']
-            ?? ($_GET['type'] ?? null);
-
-        if ($requestType !== 'fetch_printful_items') {
-            http_response_code(400);
-            echo json_encode([
-                "error" => "Invalid Request Type"
-            ]);
-            ob_end_flush();
-            exit;
-        }
-
-        if (!defined('PRINTFUL_API_KEY') || empty(PRINTFUL_API_KEY)) {
-            http_response_code(500);
-
-            echo json_encode([
-                "error" => "PRINTFUL_API_KEY not defined"
-            ]);
-
-            ob_end_flush();
-            exit;
-        }
 
         $productsResponse = $_SESSION['PrintfulItems'] ?? $TycadomeBackend->BasicPrintfulRequest();
 
@@ -185,12 +162,14 @@ switch ($TycadomeBackend->isApiRequest()) {
 
     case "websocket":
         // Periodically reap dead FFmpeg processes
+        /*
         $TycadomeBackend->loop->addPeriodicTimer(5, function () use ($TycadomeBackend) {
             foreach ($TycadomeBackend->getActiveFFmpegKeys() as $key) {
                 $TycadomeBackend->reapFFmpeg($key);
             }
         });
         $TycadomeBackend->loop->run();
+        */
         break;
     default:
 

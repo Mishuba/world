@@ -111,9 +111,6 @@ class BeginnerStore extends BasicServer
             }
             if (!$found)
                 $this->respond(['error' => 'Variant not found'], 404);
-
-            $result = $this->addToPrintCart($found, $quantity);
-            $this->respond(['success' => true, 'cart_count' => count($_SESSION['ShoppingCartItems']), 'item' => $result['item']]);
         }
     }
 
