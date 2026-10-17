@@ -52,7 +52,6 @@ switch ($TycadomeBackend->isApiRequest()) {
         $TycadomeBackend->RadioPlaylist($_SERVER['REQUEST_METHOD'], getenv(""), getenv(""), getenv(""), "array");
         break;
 
-    case "x-request-type":
     case "fetch_printful_items":
 
         $productsResponse = $_SESSION['PrintfulItems'] ?? $TycadomeBackend->BasicPrintfulRequest();

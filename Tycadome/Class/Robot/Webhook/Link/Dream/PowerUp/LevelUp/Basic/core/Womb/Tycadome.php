@@ -26,6 +26,10 @@ class TycadomeServer
     protected \SplObjectStorage $clients;
     protected array $ffmpeg = []; // streamKey => [process, stdin]
     protected array $restream = []; // streamKey => [process]
+    public $httpcontenttype;
+    public $httpxrequestwith;
+    public $httpxrequesttype;
+    public $httprequestmethod;
 
     // Destination RTMP endpoints
     protected array $destinations = [
@@ -45,8 +49,7 @@ class TycadomeServer
         $this->allowed_origins = [
             "https://tsunamiflow.club",
             "https://www.tsunamiflow.club",
-            "https://tsunamiflow.onrender.com",
-            "https://world-l87q.onrender.com"
+            "https://tsunamiflow.onrender.com"
         ];
         $this->clients = new \SplObjectStorage();
         echo "🌊 TsunamiFlow WebSocket MEDIA server started\n";
@@ -56,6 +59,7 @@ class TycadomeServer
         $this->nanoU = getenv("NANO_USER");
         $this->nanoPsw = getenv("NANO_PSW");
         $this->nanoDSN = "pgsql:host=$this->nanoH;port=$this->nanoP;dbname=$this->nanoDb;sslmode=require;channel_binding=require";
+
     }
 
     public function getIpAddress()
@@ -129,10 +133,20 @@ class TycadomeServer
     }
     public function isApiRequest()
     {
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        $this->httpcontenttype = $_SERVER['CONTENT_TYPE'] ?? '';
+        $this->httpxrequestwith = $_SERVER['HTTP_X_REQUESTED_WITH'];
+        $this->httpxrequesttype = $_SERVER['HTTP_X_REQUEST_TYPE'];
+        $this->httprequestmethod = $_SERVER['REQUEST_METHOD'];
 
-        return isset($_SERVER['HTTP_X_REQUESTED_WITH']) || isset($_SERVER['HTTP_X_REQUEST_TYPE']) || str_contains($contentType, 'application/json')
-            || ($_SERVER['REQUEST_METHOD'] === 'POST');
+        if (isset($this->httpxrequesttype)) {
+            return $this->httpxrequesttype;
+        } else if (isset($this->httpxrequestwith)) {
+            return $this->httpxrequestwith;
+        } else if (str_contains($this->httpcontenttype, 'application/json')) {
+            return $this->httpcontenttype;
+        } else {
+            return $this->httprequestmethod;
+        }
     }
 
     public function writeCookies(array $xmljson, int $days = 30)
