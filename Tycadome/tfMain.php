@@ -2,7 +2,6 @@
 $allowed_origins = [
     "https://tsunamiflow.club",
     "https://tsunamiflow.onrender.com",
-    "https://world-l87q.onrender.com"
 ];
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -52,7 +51,7 @@ switch ($TycadomeBackend->isApiRequest()) {
         break;
 
     case "fetch_printful_items":
-        $productsResponse = $_SESSION['PrintfulItems'] ?? $TycadomeBackend->BasicPrintfulRequest();
+        $productsResponse = $_SESSION['PrintfulItems'] ?? $TycadomeBackend->fetchPrintItems();
 
         if (
             !is_array($productsResponse)
@@ -71,91 +70,6 @@ switch ($TycadomeBackend->isApiRequest()) {
             }
             exit;
         }
-
-        $items = [];
-
-        foreach ($productsResponse['result'] as $product) {
-
-            // Validate product ID exists
-            if (empty($product['id'])) {
-                error_log("Warning: Product missing ID: " . json_encode($product));
-                continue;
-            }
-
-            $variantResponse = $TycadomeBackend->getVariantandPrice($product['id']);
-
-            $variants = [];
-
-            if (
-                is_array($variantResponse)
-                && !isset($variantResponse['error'])
-                && isset($variantResponse['result']['sync_variants'])
-            ) {
-
-                foreach (
-                    $variantResponse['result']['sync_variants']
-                    as $variant
-                ) {
-
-                    $image = null;
-
-                    if (!empty($variant['files'])) {
-
-                        foreach ($variant['files'] as $file) {
-
-                            if (!empty($file['preview_url'])) {
-                                $image = $file['preview_url'];
-                                break;
-                            }
-                        }
-                    }
-
-                    if (
-                        $image === null
-                        && !empty($product['thumbnail_url'])
-                    ) {
-                        $image = $product['thumbnail_url'];
-                    }
-
-                    $variants[] = [
-                        "variant_id" => $variant['id'] ?? null,
-                        "name" => $variant['name'] ?? '',
-                        "price" => $variant['retail_price'] ?? null,
-                        "sku" => $variant['sku'] ?? '',
-                        "image" => $image
-                    ];
-                }
-            }
-
-            $items[] = [
-                "product_id" => $product['id'] ?? null,
-                "name" => $product['name'] ?? '',
-                "description" => "no description",
-                "thumbnail" => $product['thumbnail_url'] ?? null,
-                "variants" => $variants
-            ];
-        }
-
-        $output = json_encode(
-            [
-                "items" => $items
-            ]
-        );
-
-        if ($output === false) {
-            http_response_code(500);
-            echo json_encode([
-                "error" => "Failed to encode JSON response"
-            ]);
-            ob_end_flush();
-            exit;
-        }
-
-        $showSuccess = true;
-
-        echo $output;
-
-        ob_end_flush();
         break;
 
     case "websocket":
