@@ -68,7 +68,9 @@ switch ($TycadomeBackend->isApiRequest()) {
                 "details" => $productsResponse
             ]);
 
-            ob_end_flush();
+            if (ob_get_level() > 0) {
+                ob_end_flush();
+            }
             exit;
         }
 

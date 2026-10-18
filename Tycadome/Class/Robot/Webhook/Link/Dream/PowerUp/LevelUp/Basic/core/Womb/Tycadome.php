@@ -134,9 +134,9 @@ class TycadomeServer
     public function isApiRequest()
     {
         $this->httpcontenttype = $_SERVER['CONTENT_TYPE'] ?? '';
-        $this->httpxrequestwith = $_SERVER['HTTP_X_REQUESTED_WITH'];
-        $this->httpxrequesttype = $_SERVER['HTTP_X_REQUEST_TYPE'];
-        $this->httprequestmethod = $_SERVER['REQUEST_METHOD'];
+        $this->httpxrequestwith = $_SERVER['HTTP_X_REQUESTED_WITH'] ?? '';
+        $this->httpxrequesttype = $_SERVER['HTTP_X_REQUEST_TYPE'] ?? '';
+        $this->httprequestmethod = $_SERVER['REQUEST_METHOD'] ?? '';
 
         if (isset($this->httpxrequesttype)) {
             return $this->httpxrequesttype;
