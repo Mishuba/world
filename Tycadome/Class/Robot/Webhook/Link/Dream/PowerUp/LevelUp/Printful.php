@@ -6,7 +6,7 @@ class BeginnerStore extends BasicServer
     public function BasicPrintfulRequest()
     {
         $ch = curl_init('https://api.printful.com/store/products');
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . getenv("PRINTFUL_API_KEY")]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . getenv("PRINTFUL_API_KEY", false)]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
         $response = curl_exec($ch);
@@ -76,7 +76,7 @@ class BeginnerStore extends BasicServer
 
         $items = [];
 
-        foreach ($_SESSION['PrintfulItems']['result'] as $product) {
+        foreach ($_SESSION['PrintfulItems'] as $product) {
 
             // Validate product ID exists
             if (empty($product['id'])) {
