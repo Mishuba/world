@@ -5,16 +5,15 @@ class BeginnerStore extends BasicServer
 {
     public function BasicPrintfulRequest()
     {
+        $api = getenv("PRINTFUL_API_KEY", false);
         $ch = curl_init('https://api.printful.com/store/products');
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . getenv("PRINTFUL_API_KEY", false)]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, "Authorization: Bearer $api");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
         $response = curl_exec($ch);
         if (curl_errno($ch)) {
-            curl_close($ch);
             return ['result' => []];
         }
-        curl_close($ch);
 
         $decoded = json_decode($response, true);
         return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result' => []];
@@ -22,8 +21,9 @@ class BeginnerStore extends BasicServer
 
     public function PrintfulProductionDescription($productId)
     {
+        $api = getenv("PRINTFUL_API_KEY", false);
         $ch = curl_init("https://api.printful.com/store/products/$productId");
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . getenv("PRINTFUL_API_KEY")]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer $api"]);
         curl_setopt(
             $ch,
             CURLOPT_RETURNTRANSFER,
@@ -32,10 +32,8 @@ class BeginnerStore extends BasicServer
         $response = curl_exec($ch);
         curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
         if (curl_errno($ch)) {
-            curl_close($ch);
             return ['result' => []];
         }
-        curl_close($ch);
 
         $decoded = json_decode($response, true);
         return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result' => []];
