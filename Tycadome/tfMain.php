@@ -48,12 +48,10 @@ $TycadomeBackend = new Detha();
 
 switch ($TycadomeBackend->isApiRequest()) {
     case "fetchRadioSongs":
-
-        $TycadomeBackend->RadioPlaylist($_SERVER['REQUEST_METHOD'], getenv(""), getenv(""), getenv(""), "array");
+        $TycadomeBackend->RadioPlaylist($_SERVER['REQUEST_METHOD'], getenv("CLOUDFLARE_R2_ACCESS_KEY"), getenv("CLOUDFLARE_R2_SECRET_KEY"), getenv("CLOUDFLARE_R2_ENDPOINT"));
         break;
 
     case "fetch_printful_items":
-
         $productsResponse = $_SESSION['PrintfulItems'] ?? $TycadomeBackend->BasicPrintfulRequest();
 
         if (

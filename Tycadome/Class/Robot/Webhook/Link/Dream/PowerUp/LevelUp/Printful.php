@@ -75,8 +75,6 @@ class BeginnerStore extends BasicServer
         if (isset($_GET['fetch_printful_items'])) {
             $this->respond(['success' => true, 'items' => $_SESSION['PrintfulItems']['result'] ?? []]);
         }
-
-        $this->respond(['success' => true, 'message' => 'GET request received']);
     }
 
     public function addToPrintCart()
