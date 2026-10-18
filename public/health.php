@@ -1,5 +1,4 @@
 <?
-<?php
 // health.php - lightweight readiness check.
 // Keep this free of DB calls and heavy includes so it responds as soon as the server is up.
 
@@ -18,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 http_response_code(200);
 echo json_encode([
     'status' => 'ok',
-    'time'   => gmdate('c'),
+    'time' => gmdate('c'),
 ]);
 
 ?>
