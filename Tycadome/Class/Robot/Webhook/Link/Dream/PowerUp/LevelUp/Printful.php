@@ -17,7 +17,7 @@ class BeginnerStore extends BasicServer
         curl_close($ch);
 
         $decoded = json_decode($response, true);
-        return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result' => $decoded['result'] ?? []];
+        return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result' => []];
     }
 
     public function PrintfulProductionDescription($productId)
