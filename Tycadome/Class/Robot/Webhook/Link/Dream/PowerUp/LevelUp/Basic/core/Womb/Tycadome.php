@@ -113,22 +113,20 @@ class TycadomeServer
 
     public function respond(array $data, bool $Tycadome = false, int $status = 204)
     {
-        if (header("Content-Type: application/json")) {
-            if ($Tycadome === true) {
-                $tf = $this->tycadome(
-                    $data["id"],
-                    $data["type"],
-                    $data["action"],
-                    $data["meta"],
-                    $data["state"],
-                    $data["mode"],
-                    $data["payload"]
-                );
-                //json_encode($tf, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE | JSON_UNESCAPED_SLASHES);
-                echo json_encode($tf);
-            } else {
-                echo json_encode($data);
-            }
+        if ($Tycadome === true) {
+            $tf = $this->tycadome(
+                $data["id"],
+                $data["type"],
+                $data["action"],
+                $data["meta"],
+                $data["state"],
+                $data["mode"],
+                $data["payload"]
+            );
+            //json_encode($tf, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE | JSON_UNESCAPED_SLASHES);
+            echo json_encode($tf);
+        } else {
+            echo json_encode($data);
         }
         exit;
     }

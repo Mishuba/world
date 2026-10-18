@@ -24,6 +24,7 @@ if (session_status() === PHP_SESSION_NONE) {
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization, X-Requested-With, x-request-type");
+header("Content-Type: application/json");
 
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins, true)) {
     header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
