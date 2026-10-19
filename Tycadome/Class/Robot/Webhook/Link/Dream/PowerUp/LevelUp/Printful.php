@@ -8,7 +8,7 @@ class BeginnerStore extends BasicServer
         $api = $_ENV["PRINTFUL_API_KEY"] ?? getenv("PRINTFUL_API_KEY");
 
         $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer $api"]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer" . $api]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FORBID_REUSE, true);
         $response = curl_exec($ch);
