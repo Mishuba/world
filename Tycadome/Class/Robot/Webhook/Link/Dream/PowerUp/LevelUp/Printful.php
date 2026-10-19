@@ -5,7 +5,8 @@ class BeginnerStore extends BasicServer
 {
     private function printfulGet(string $url): array
     {
-        $api = getenv("PRINTFUL_API_KEY");
+        $api = $_ENV["PRINTFUL_API_KEY"] ?? getenv("PRINTFUL_API_KEY");
+
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer $api"]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -44,7 +45,7 @@ class BeginnerStore extends BasicServer
         $ch = curl_init('https://api.printful.com/orders');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . getenv("PRINTFUL_API_KEY"),
+            'Authorization: Bearer ' . ($_ENV["PRINTFUL_API_KEY"] ?? getenv("PRINTFUL_API_KEY")),
             'Content-Type: application/json'
         ]);
         curl_setopt($ch, CURLOPT_POST, true);
@@ -205,7 +206,7 @@ class BeginnerStore extends BasicServer
 
     public function CreatePrintfulOrder(array $cartItems, array $customer)
     {
-        $apiKey = getenv("PRINTFUL_API_KEY");
+        $apiKey = $_ENV["PRINTFUL_API_KEY"] ?? getenv("PRINTFUL_API_KEY");
         if (!$apiKey) {
             return ['success' => false, 'error' => 'Missing Printful API key'];
         }
