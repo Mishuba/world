@@ -3,17 +3,11 @@ require_once __DIR__ . "/Basic/Money.php";
 
 class BeginnerStore extends BasicServer
 {
-    private function printfulGet(string $url): array
+    private function printfulGet(string $url)
     {
-<<<<<<< HEAD
-        $api = getenv("PRINTFUL_API_KEY", false);
-        $ch = curl_init('https://api.printful.com/store/products');
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer" . $api]);
-=======
         $api = getenv("PRINTFUL_API_KEY");
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer $api"]);
->>>>>>> 58c24b42b74ff80100ada1e12f2a831358ce0e82
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FORBID_REUSE, true);
         $response = curl_exec($ch);
@@ -35,26 +29,7 @@ class BeginnerStore extends BasicServer
 
     public function PrintfulProductionDescription($productId)
     {
-<<<<<<< HEAD
-        $api = getenv("PRINTFUL_API_KEY", false);
-        $ch = curl_init("https://api.printful.com/store/products/$productId");
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer" . $api]);
-        curl_setopt(
-            $ch,
-            CURLOPT_RETURNTRANSFER,
-            true
-        );
-        curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
-        $response = curl_exec($ch);
-        if (curl_errno($ch)) {
-            return ['result' => []];
-        }
-
-        $decoded = json_decode($response, true);
-        return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result' => []];
-=======
         return $this->printfulGet("https://api.printful.com/store/products/" . urlencode((string) $productId));
->>>>>>> 58c24b42b74ff80100ada1e12f2a831358ce0e82
     }
 
     // Returns ['sync_product' => [...], 'sync_variants' => [...]] or null
