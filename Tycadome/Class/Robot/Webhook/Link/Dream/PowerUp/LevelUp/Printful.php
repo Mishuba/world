@@ -3,7 +3,7 @@ require_once __DIR__ . "/Basic/Money.php";
 
 class BeginnerStore extends BasicServer
 {
-    private function printfulGet(string $url)
+    private function printfulGet(string $url): array
     {
         $api = getenv("PRINTFUL_API_KEY");
         $ch = curl_init($url);
