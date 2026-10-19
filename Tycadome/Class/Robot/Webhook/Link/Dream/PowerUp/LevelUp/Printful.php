@@ -5,22 +5,45 @@ class BeginnerStore extends BasicServer
 {
     private function printfulGet(string $url): array
     {
-        $api = $_ENV["PRINTFUL_API_KEY"] ?? getenv("PRINTFUL_API_KEY");
+        $api = getenv("PRINTFUL_API_KEY");
+        if (!$api) {
+            error_log("Printful: PRINTFUL_API_KEY is not set");
+            return ['result' => [], 'error' => 'PRINTFUL_API_KEY is not set on the server'];
+        }
+
+        $headers = ["Authorization: Bearer $api"];
+        $storeId = getenv("PRINTFUL_STORE_ID"); // needed for account-level tokens
+        if ($storeId) {
+            $headers[] = "X-PF-Store-Id: $storeId";
+        }
 
         $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer $api"]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FORBID_REUSE, true);
         $response = curl_exec($ch);
         if (curl_errno($ch)) {
-            error_log("Printful cURL error: " . curl_error($ch));
+            $err = curl_error($ch);
+            error_log("Printful cURL error: " . $err);
             curl_close($ch);
-            return ['result' => []];
+            return ['result' => [], 'error' => $err];
         }
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         $decoded = json_decode($response, true);
-        return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result' => []];
+
+        // On errors Printful puts a message string in "result", so require an array
+        if ($httpCode >= 400 || !is_array($decoded) || !isset($decoded['result']) || !is_array($decoded['result'])) {
+            $msg = is_array($decoded)
+                ? ($decoded['error']['message'] ?? $decoded['result'] ?? 'Unknown error')
+                : 'Invalid response from Printful';
+            $msg = is_string($msg) ? $msg : json_encode($msg);
+            error_log("Printful API error (HTTP $httpCode) for $url: $msg");
+            return ['result' => [], 'error' => "HTTP $httpCode: $msg"];
+        }
+
+        return $decoded;
     }
 
     public function BasicPrintfulRequest()
@@ -45,7 +68,7 @@ class BeginnerStore extends BasicServer
         $ch = curl_init('https://api.printful.com/orders');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . ($_ENV["PRINTFUL_API_KEY"] ?? getenv("PRINTFUL_API_KEY")),
+            'Authorization: Bearer ' . getenv("PRINTFUL_API_KEY"),
             'Content-Type: application/json'
         ]);
         curl_setopt($ch, CURLOPT_POST, true);
@@ -113,7 +136,11 @@ class BeginnerStore extends BasicServer
             ];
         }
 
-        $this->respond(['success' => true, 'items' => $items]);
+        $this->respond([
+            'success' => empty($list['error']),
+            'items' => $items,
+            'error' => $list['error'] ?? null
+        ]);
     }
 
     public function addToPrintCart()
@@ -206,7 +233,7 @@ class BeginnerStore extends BasicServer
 
     public function CreatePrintfulOrder(array $cartItems, array $customer)
     {
-        $apiKey = $_ENV["PRINTFUL_API_KEY"] ?? getenv("PRINTFUL_API_KEY");
+        $apiKey = getenv("PRINTFUL_API_KEY");
         if (!$apiKey) {
             return ['success' => false, 'error' => 'Missing Printful API key'];
         }
