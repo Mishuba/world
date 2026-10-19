@@ -3,24 +3,39 @@ require_once __DIR__ . "/Basic/Money.php";
 
 class BeginnerStore extends BasicServer
 {
-    public function BasicPrintfulRequest()
+    private function printfulGet(string $url): array
     {
+<<<<<<< HEAD
         $api = getenv("PRINTFUL_API_KEY", false);
         $ch = curl_init('https://api.printful.com/store/products');
         curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer" . $api]);
+=======
+        $api = getenv("PRINTFUL_API_KEY");
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer $api"]);
+>>>>>>> 58c24b42b74ff80100ada1e12f2a831358ce0e82
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
+        curl_setopt($ch, CURLOPT_FORBID_REUSE, true);
         $response = curl_exec($ch);
         if (curl_errno($ch)) {
+            error_log("Printful cURL error: " . curl_error($ch));
+            curl_close($ch);
             return ['result' => []];
         }
+        curl_close($ch);
 
         $decoded = json_decode($response, true);
         return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result' => []];
     }
 
+    public function BasicPrintfulRequest()
+    {
+        return $this->printfulGet('https://api.printful.com/store/products');
+    }
+
     public function PrintfulProductionDescription($productId)
     {
+<<<<<<< HEAD
         $api = getenv("PRINTFUL_API_KEY", false);
         $ch = curl_init("https://api.printful.com/store/products/$productId");
         curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer" . $api]);
@@ -37,12 +52,16 @@ class BeginnerStore extends BasicServer
 
         $decoded = json_decode($response, true);
         return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result' => []];
+=======
+        return $this->printfulGet("https://api.printful.com/store/products/" . urlencode((string) $productId));
+>>>>>>> 58c24b42b74ff80100ada1e12f2a831358ce0e82
     }
 
+    // Returns ['sync_product' => [...], 'sync_variants' => [...]] or null
     public function getVariantandPrice($productId)
     {
         $prod = $this->PrintfulProductionDescription($productId);
-        return $prod['result'] ?? null; // Return full product
+        return !empty($prod['result']) ? $prod['result'] : null;
     }
 
     public function NPOtfTS(array $orderData)
@@ -55,7 +74,7 @@ class BeginnerStore extends BasicServer
         ]);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($orderData));
-        curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
+        curl_setopt($ch, CURLOPT_FORBID_REUSE, true);
 
         $response = curl_exec($ch);
         if (curl_errno($ch)) {
@@ -70,50 +89,32 @@ class BeginnerStore extends BasicServer
 
     public function fetchPrintItems()
     {
-        $_SESSION['PrintfulItems'] = $this->BasicPrintfulRequest();
+        $list = $this->BasicPrintfulRequest();
+        $_SESSION['PrintfulItems'] = $list;
 
         $items = [];
 
-        foreach ($_SESSION['PrintfulItems'] as $product) {
-
-            // Validate product ID exists
+        foreach ($list['result'] ?? [] as $product) {
             if (empty($product['id'])) {
                 error_log("Warning: Product missing ID: " . json_encode($product));
                 continue;
             }
 
-            $variantResponse = $this->getVariantandPrice($product['id']);
-
+            $detail = $this->getVariantandPrice($product['id']);
             $variants = [];
 
-            if (
-                is_array($variantResponse)
-                && !isset($variantResponse['error'])
-                && isset($variantResponse['result']['sync_variants'])
-            ) {
-
-                foreach (
-                    $variantResponse['result']['sync_variants']
-                    as $variant
-                ) {
-
+            if (is_array($detail) && isset($detail['sync_variants'])) {
+                foreach ($detail['sync_variants'] as $variant) {
                     $image = null;
 
-                    if (!empty($variant['files'])) {
-
-                        foreach ($variant['files'] as $file) {
-
-                            if (!empty($file['preview_url'])) {
-                                $image = $file['preview_url'];
-                                break;
-                            }
+                    foreach ($variant['files'] ?? [] as $file) {
+                        if (!empty($file['preview_url'])) {
+                            $image = $file['preview_url'];
+                            break;
                         }
                     }
 
-                    if (
-                        $image === null
-                        && !empty($product['thumbnail_url'])
-                    ) {
+                    if ($image === null && !empty($product['thumbnail_url'])) {
                         $image = $product['thumbnail_url'];
                     }
 
@@ -128,7 +129,7 @@ class BeginnerStore extends BasicServer
             }
 
             $items[] = [
-                "product_id" => $product['id'] ?? null,
+                "product_id" => $product['id'],
                 "name" => $product['name'] ?? '',
                 "description" => "no description",
                 "thumbnail" => $product['thumbnail_url'] ?? null,
@@ -136,60 +137,80 @@ class BeginnerStore extends BasicServer
             ];
         }
 
-
-        $output = json_encode(
-            [
-                "items" => $items
-            ]
-        );
-
-        if ($output === false) {
-            http_response_code(500);
-            echo json_encode([
-                "error" => "Failed to encode JSON response"
-            ]);
-            ob_end_flush();
-            exit;
-        } else {
-            $this->respond(['success' => true, 'items' => $_SESSION['PrintfulItems']['result'] ?? []]);
-            ob_end_flush();
-            exit;
-        }
+        $this->respond(['success' => true, 'items' => $items]);
     }
 
     public function addToPrintCart()
     {
-        if (isset($_POST['addProductToCart'])) {
-            $variantId = trim($_POST['product_id'] ?? '');
-            $quantity = max(1, (int) ($_POST['StoreQuantity'] ?? 1));
-            if (!$variantId)
-                $this->respond(['error' => 'Missing product ID'], 400);
+        if (!isset($_POST['addProductToCart'])) {
+            return;
+        }
 
-            $myProducts = $this->BasicPrintfulRequest();
-            $_SESSION['PrintfulItems'] = $myProducts;
+        $variantId = trim($_POST['product_id'] ?? '');
+        $parentId = trim($_POST['parent_product_id'] ?? '');
+        $quantity = max(1, (int) ($_POST['StoreQuantity'] ?? 1));
 
-            $found = null;
-            foreach ($myProducts['result'] ?? [] as $product) {
-                $variants = $product['sync_variants'] ?? $product['variants'] ?? [];
-                foreach ($variants as $v) {
-                    if ((string) ($v['id'] ?? '') === (string) $variantId) {
-                        $found = [
-                            'parent_product_id' => $product['id'] ?? null,
-                            'name' => $product['name'] ?? ($v['name'] ?? 'Unknown'),
-                            'variant_id' => $v['id'] ?? $variantId,
-                            'variant_name' => $v['name'] ?? '',
-                            'price' => (float) ($v['retail_price'] ?? ($v['price'] ?? 0)),
-                            'size' => $v['size'] ?? ($v['size_name'] ?? ''),
-                            'availability' => $v['availability_status'] ?? ($v['availability'] ?? ''),
-                            'thumbnail' => $product['thumbnail_url'] ?? ($product['image'] ?? '')
-                        ];
-                        break 2;
-                    }
+        if ($variantId === '') {
+            $this->respond(['error' => 'Missing product ID'], false, 400);
+        }
+
+        // Narrow the search to one product if the front end sent its parent ID
+        $productIds = [];
+        if ($parentId !== '') {
+            $productIds[] = $parentId;
+        } else {
+            foreach ($this->BasicPrintfulRequest()['result'] ?? [] as $p) {
+                if (!empty($p['id'])) {
+                    $productIds[] = $p['id'];
                 }
             }
-            if (!$found)
-                $this->respond(['error' => 'Variant not found'], 404);
         }
+
+        $found = null;
+        foreach ($productIds as $pid) {
+            $detail = $this->getVariantandPrice($pid);
+            if (!$detail) {
+                continue;
+            }
+            $product = $detail['sync_product'] ?? [];
+            foreach ($detail['sync_variants'] ?? [] as $v) {
+                if ((string) ($v['id'] ?? '') === $variantId) {
+                    $found = [
+                        'parent_product_id' => $product['id'] ?? $pid,
+                        'name' => $product['name'] ?? ($v['name'] ?? 'Unknown'),
+                        'variant_id' => $v['id'],
+                        'variant_name' => $v['name'] ?? '',
+                        'price' => (float) ($v['retail_price'] ?? 0),
+                        'size' => $v['size'] ?? '',
+                        'availability' => $v['availability_status'] ?? '',
+                        'thumbnail' => $product['thumbnail_url'] ?? '',
+                        'quantity' => $quantity
+                    ];
+                    break 2;
+                }
+            }
+        }
+
+        if (!$found) {
+            $this->respond(['error' => 'Variant not found'], false, 404);
+        }
+
+        // Merge into the cart
+        $_SESSION['ShoppingCartItems'] = $_SESSION['ShoppingCartItems'] ?? [];
+        $merged = false;
+        foreach ($_SESSION['ShoppingCartItems'] as &$existing) {
+            if ((string) $existing['variant_id'] === (string) $found['variant_id']) {
+                $existing['quantity'] += $quantity;
+                $merged = true;
+                break;
+            }
+        }
+        unset($existing);
+        if (!$merged) {
+            $_SESSION['ShoppingCartItems'][] = $found;
+        }
+
+        $this->respond(['success' => true, 'items' => $_SESSION['ShoppingCartItems']]);
     }
 
     public function CartAction()
@@ -210,8 +231,9 @@ class BeginnerStore extends BasicServer
     public function CreatePrintfulOrder(array $cartItems, array $customer)
     {
         $apiKey = getenv("PRINTFUL_API_KEY");
-        if (!$apiKey)
-            return ['error' => 'Missing Printful API key'];
+        if (!$apiKey) {
+            return ['success' => false, 'error' => 'Missing Printful API key'];
+        }
 
         $order = [
             "recipient" => [
@@ -228,42 +250,46 @@ class BeginnerStore extends BasicServer
         ];
 
         foreach ($cartItems as $item) {
+            // Store products are ordered by sync_variant_id
             $order['items'][] = [
-                "variant_id" => $item['variant_id'],
-                "quantity" => $item['quantity']
+                "sync_variant_id" => $item['variant_id'],
+                "quantity" => $item['quantity'] ?? 1
             ];
         }
 
         $ch = curl_init('https://api.printful.com/orders');
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . getenv("PRINTFUL_API_KEY"),
+            'Authorization: Bearer ' . $apiKey,
             'Content-Type: application/json'
         ]);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($order));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
+        curl_setopt($ch, CURLOPT_FORBID_REUSE, true);
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         $result = json_decode($response, true) ?? [];
-        if ($httpCode >= 200 && $httpCode < 300)
+        if ($httpCode >= 200 && $httpCode < 300) {
             return ['success' => true, 'result' => $result];
+        }
 
-        return ['success' => false, 'error' => $result['error'] ?? 'Unknown Printful error'];
+        return ['success' => false, 'error' => $result['error']['message'] ?? ($result['error'] ?? 'Unknown Printful error')];
     }
 
     public function PrintulCheckout()
     {
-        if (($xmljson['type'] ?? '') === 'Printful Checkout') {
+        if (($this->xmljson['type'] ?? '') === 'Printful Checkout') {
             $cartItems = $_SESSION['ShoppingCartItems'] ?? [];
-            if (empty($cartItems))
-                $this->respond(['error' => 'Cart is empty'], 400);
+            if (empty($cartItems)) {
+                $this->respond(['error' => 'Cart is empty'], false, 400);
+            }
 
-            $result = $this->CreatePrintfulOrder($cartItems, $xmljson['customer'] ?? []);
-            if (!empty($result['success']))
+            $result = $this->CreatePrintfulOrder($cartItems, $this->xmljson['customer'] ?? []);
+            if (!empty($result['success'])) {
                 unset($_SESSION['ShoppingCartItems']);
+            }
             $this->respond([
                 'success' => !empty($result['success']),
                 'order' => $result['result'] ?? null,
