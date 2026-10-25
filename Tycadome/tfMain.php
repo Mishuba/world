@@ -84,6 +84,10 @@ switch ($TycadomeBackend->isApiRequest()) {
         $TycadomeBackend->loop->run();
         */
         break;
+
+case "user-signin"
+//$TycadomeBackend->
+break;
     default:
 
         break;
