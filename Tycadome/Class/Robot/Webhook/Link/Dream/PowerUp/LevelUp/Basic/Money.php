@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . "/core/Core.php";
 
-use Stripe\Stripe;
+use Stripe\Customer;
+use Stripe\PaymentIntent;
+use Stripe\Subscription;
 use Stripe\Webhook;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
@@ -10,75 +12,85 @@ use Stripe\Exception\CardException;
 
 class BeginnerServer extends BasicServer
 {
-    public StripeClient $stripe;
+    public $stripe;
+    public $paymentIntent;
+    public $subscription;
+    public $customer;
+    public $customerId;
+    public $amount;
+    public $currency;
+    public $priceId;
+
+    public function __construct()
+    {
+        $this->stripe = new StripeClient(getenv("STRIPE_SECRET_KEY"));
+    }
 
     public function StripeBeginningOk()
     {
-        $stripe = new StripeClient(getenv("STRIPE_SECRET_KEY") ?? '');
-
         $action = $this->xmljson['action'] ?? '';
 
         try {
             $saveCustomer = $this->xmljson['saveCustomer'] ?? false;
-            $customerId = $this->xmljson['customerId'] ?? null;
+            $this->customerId = $this->xmljson['customerId'] ?? null;
             $email = $this->xmljson['email'] ?? null;
-            $customer = null;
+            $this->customer = null;
 
             // Reuse or create customer if needed
             if ($saveCustomer) {
-                if ($customerId) {
-                    $customer = \Stripe\Customer::retrieve($customerId);
+                if ($this->customerId) {
+                    $this->customer = Customer::retrieve($this->customerId);
                 } else {
-                    $customer = \Stripe\Customer::create([
+                    $this->customer = Customer::create([
                         'email' => $email
                     ]);
-                    $customerId = $customer->id;
+                    $this->customerId = $this->customer->id;
                 }
             }
 
             switch ($action) {
 
                 case 'createPaymentIntent':
-                    $amount = $this->xmljson['amount']; // in cents
-                    $currency = $this->xmljson['currency'] ?? 'usd';
+                    $this->amount = $this->xmljson['amount']; // in cents
+                    $this->currency = $this->xmljson['currency'] ?? 'usd';
 
-                    $paymentIntent = \Stripe\PaymentIntent::create([
-                        'amount' => $amount,
-                        'currency' => $currency,
-                        'customer' => $customerId ?? null,
+                    $this->paymentIntent = PaymentIntent::create([
+                        'amount' => $this->amount,
+                        'currency' => $this->currency,
+                        'customer' => $this->customerId ?? null,
                         'automatic_payment_methods' => ['enabled' => true],
                     ]);
 
                     echo json_encode([
-                        'clientSecret' => $paymentIntent->client_secret,
-                        'customerId' => $customerId
+                        'clientSecret' => $this->paymentIntent->client_secret,
+                        'customerId' => $this->customerId
                     ]);
                     break;
 
                 case 'createSubscription':
-                    $priceId = $this->xmljson['priceId']; // Stripe Price ID
+                    $this->priceId = $this->xmljson['priceId']; // Stripe Price ID
 
-                    if (!$customer) {
+                    if (!$this->customer) {
                         // Create customer if not already done
-                        $customer = \Stripe\Customer::create([
+                        $this->customer = Customer::create([
                             'email' => $email
                         ]);
-                        $customerId = $customer->id;
+                        $this->customerId = $this->customer->id;
                     }
 
-                    $subscription = \Stripe\Subscription::create([
-                        'customer' => $customerId,
-                        'items' => [['price' => $priceId]],
+                    $this->subscription = Subscription::create([
+                        'customer' => $this->customerId,
+                        'items' => [['price' => $this->priceId]],
                         'payment_behavior' => 'default_incomplete',
                         'expand' => ['latest_invoice.payment_intent'],
                     ]);
 
-                    $clientSecret = $subscription->latest_invoice->payment_intent->client_secret ?? null;
+                    $clientSecret = $this->subscription->latest_invoice->payment_intent->client_secret ?? null;
 
                     echo json_encode([
                         'clientSecret' => $clientSecret,
-                        'subscriptionId' => $subscription->id,
-                        'customerId' => $customerId
+                        'subscriptionId' => $this->subscription->id,
+                        'customerId' => $this->customerId
                     ]);
                     break;
 
@@ -86,7 +98,7 @@ class BeginnerServer extends BasicServer
                     echo json_encode(['error' => 'Invalid action']);
             }
 
-        } catch (\Stripe\Exception\ApiErrorException $e) {
+        } catch (ApiErrorException $e) {
             echo json_encode(['error' => $e->getMessage()]);
         }
     }
@@ -106,19 +118,19 @@ class BeginnerServer extends BasicServer
     ): string {
         try {
             // Step 1: Create customer
-            $customer = $this->stripe->customers->create([
+            $this->customer = $this->stripe->customers->create([
                 "email" => $this->customerData['email'],
                 "name" => $this->customerData['name'],
                 "description" => $this->customerData['description'] ?? "",
                 "address" => ["country" => $this->customerData['countryCode']]
             ]);
 
-            if (!$customer || !isset($customer->id)) {
+            if (!$this->customer || !isset($customer->id)) {
                 return json_encode(["error" => "Failed to create customer"]);
             }
 
             // Set default payment method
-            $this->stripe->customers->update($customer->id, [
+            $this->stripe->customers->update($this->customer->id, [
                 "invoice_settings" => ["default_payment_method" => $this->paymentMethodId]
             ]);
 
@@ -126,7 +138,7 @@ class BeginnerServer extends BasicServer
             if (!empty($this->customerData['taxId'])) {
                 $taxType = $this->getTaxIdType($this->customerData['countryCode']);
                 if ($taxType) {
-                    $this->stripe->customers->createTaxId($customer->id, [
+                    $this->stripe->customers->createTaxId($this->customer->id, [
                         "type" => $taxType,
                         "value" => $this->customerData['taxId']
                     ]);
@@ -135,7 +147,7 @@ class BeginnerServer extends BasicServer
 
             // Step 2: Create PaymentIntent or Subscription
             if ($this->oneTimePayment) {
-                $intent = $this->stripe->paymentIntents->create([
+                $this->paymentIntent = $this->stripe->paymentIntents->create([
                     "amount" => $this->paymentAmount,
                     "currency" => "usd",
                     "payment_method" => $this->paymentMethodId,
@@ -147,12 +159,12 @@ class BeginnerServer extends BasicServer
                     "setup_future_usage" => "off_session"
                 ]);
 
-                $status = $intent->status;
-                $clientSecret = $intent->client_secret ?? null;
+                $status = $this->paymentIntent->status;
+                $clientSecret = $this->paymentIntent->client_secret ?? null;
 
             } else {
-                $subscription = $this->stripe->subscriptions->create([
-                    "customer" => $customer->id,
+                $this->subscription = $this->stripe->subscriptions->create([
+                    "customer" => $this->customer->id,
                     "items" => [["price" => $this->paymentAmount]],
                     "collection_method" => "charge_automatically",
                     "payment_behavior" => "default_incomplete",
@@ -160,9 +172,9 @@ class BeginnerServer extends BasicServer
                     "off_session" => true
                 ]);
 
-                $intent = $subscription->latest_invoice->payment_intent ?? null;
-                $status = $intent->status ?? "unknown";
-                $clientSecret = $intent->client_secret ?? null;
+                $this->paymentIntent = $this->subscription->latest_invoice->payment_intent ?? null;
+                $status = $this->paymentIntent->status ?? "unknown";
+                $clientSecret = $this->paymentIntent->client_secret ?? null;
             }
 
             $messages = [
@@ -264,65 +276,65 @@ class BeginnerServer extends BasicServer
 
         try {
             $saveCustomer = $this->xmljson['saveCustomer'] ?? false;
-            $customerId = $this->xmljson['customerId'] ?? null;
+            $this->customerId = $this->xmljson['customerId'] ?? null;
             $email = $this->xmljson['email'] ?? null;
-            $customer = null;
+            $this->customer = null;
 
             // Reuse or create customer if needed
             if ($saveCustomer) {
-                if ($customerId) {
-                    $customer = \Stripe\Customer::retrieve($customerId);
+                if ($this->customerId) {
+                    $this->customer = Customer::retrieve($this->customerId);
                 } else {
-                    $customer = \Stripe\Customer::create([
+                    $this->customer = Customer::create([
                         'email' => $email
                     ]);
-                    $customerId = $customer->id;
+                    $this->customerId = $this->customer->id;
                 }
             }
 
             switch ($action) {
 
                 case 'createPaymentIntent':
-                    $amount = $this->xmljson['amount']; // in cents
-                    $currency = $this->xmljson['currency'] ?? 'usd';
+                    $this->amount = $this->xmljson['amount']; // in cents
+                    $this->currency = $this->xmljson['currency'] ?? 'usd';
 
-                    $paymentIntent = \Stripe\PaymentIntent::create([
-                        'amount' => $amount,
-                        'currency' => $currency,
-                        'customer' => $customerId ?? null,
+                    $paymentIntent = PaymentIntent::create([
+                        'amount' => $this->amount,
+                        'currency' => $this->currency,
+                        'customer' => $this->customerId ?? null,
                         'automatic_payment_methods' => ['enabled' => true],
                     ]);
 
                     echo json_encode([
                         'clientSecret' => $paymentIntent->client_secret,
-                        'customerId' => $customerId
+                        'customerId' => $this->customerId
                     ]);
                     break;
 
                 case 'createSubscription':
-                    $priceId = $this->xmljson['priceId']; // Stripe Price ID
+                    $this->priceId = $this->xmljson['priceId']; // Stripe Price ID
 
-                    if (!$customer) {
+                    if (!$this->customer) {
                         // Create customer if not already done
-                        $customer = \Stripe\Customer::create([
+                        $this->customer = Customer::create([
                             'email' => $email
                         ]);
-                        $customerId = $customer->id;
+                        $this->customerId = $this->customer->id;
                     }
 
-                    $subscription = \Stripe\Subscription::create([
-                        'customer' => $customerId,
-                        'items' => [['price' => $priceId]],
+                    $this->subscription = Subscription::create([
+                        'customer' => $this->customerId,
+                        'items' => [['price' => $this->priceId]],
                         'payment_behavior' => 'default_incomplete',
                         'expand' => ['latest_invoice.payment_intent'],
                     ]);
 
-                    $clientSecret = $subscription->latest_invoice->payment_intent->client_secret ?? null;
+                    $clientSecret = $this->subscription->latest_invoice->payment_intent->client_secret ?? null;
 
                     echo json_encode([
                         'clientSecret' => $clientSecret,
-                        'subscriptionId' => $subscription->id,
-                        'customerId' => $customerId
+                        'subscriptionId' => $this->subscription->id,
+                        'customerId' => $this->customerId
                     ]);
                     break;
 
@@ -330,7 +342,7 @@ class BeginnerServer extends BasicServer
                     echo json_encode(['error' => 'Invalid action']);
             }
 
-        } catch (\Stripe\Exception\ApiErrorException $e) {
+        } catch (ApiErrorException $e) {
             echo json_encode(['error' => $e->getMessage()]);
         }
     }
@@ -592,8 +604,8 @@ class BeginnerServer extends BasicServer
                     $current_stripe_session = $stripe_webhook_event->data->object;
                     $id = $current_stripe_session->id;
                     $TfObject = $current_stripe_session->object;
-                    $amount = $current_stripe_session->amount_paid;
-                    $currency = $current_stripe_session->currency;
+                    $this->amount = $current_stripe_session->amount_paid;
+                    $this->currency = $current_stripe_session->currency;
                     $status = $current_stripe_session->status;
                     $paymentIntentId = $current_stripe_session->payment->payment_intent;
                     $TfInvoice = json_encode([

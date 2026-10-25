@@ -13,10 +13,10 @@ if (session_status() === PHP_SESSION_NONE) {
         'httponly' => true,
         'samesite' => 'None'
     ]);
-
     session_start();
 } else if (session_status() === PHP_SESSION_ACTIVE) {
     // Session is already active, do nothing
+    session_regenerate_id(true);
 } else {
     // Handle other session statuses if needed disabled
 }
@@ -54,11 +54,7 @@ switch ($TycadomeBackend->isApiRequest()) {
     case "fetch_printful_items":
         $productsResponse = $_SESSION['PrintfulItems'] ?? $TycadomeBackend->fetchPrintItems();
 
-        if (
-            !is_array($productsResponse)
-            || isset($productsResponse['error'])
-            || !isset($productsResponse['result'])
-        ) {
+        if (!is_array($productsResponse) || isset($productsResponse['error']) || !isset($productsResponse['result'])) {
             http_response_code(500);
 
             echo json_encode([
@@ -72,21 +68,16 @@ switch ($TycadomeBackend->isApiRequest()) {
             exit;
         }
         break;
+    case "user-signup":
 
+        break;
     case "websocket":
         // Periodically reap dead FFmpeg processes
-        /*
-        $TycadomeBackend->loop->addPeriodicTimer(5, function () use ($TycadomeBackend) {
-            foreach ($TycadomeBackend->getActiveFFmpegKeys() as $key) {
-                $TycadomeBackend->reapFFmpeg($key);
-            }
-        });
-        $TycadomeBackend->loop->run();
-        */
+        //$TycadomeBackend->loop->addPeriodicTimer(5, function () use ($TycadomeBackend) {foreach ($TycadomeBackend->getActiveFFmpegKeys() as $key) {$TycadomeBackend->reapFFmpeg($key);}});
+        //$TycadomeBackend->loop->run();
         break;
     default:
 
         break;
-
 }
 ?>

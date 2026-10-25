@@ -15,9 +15,9 @@ require_once "../Tycadome/tfMain.php";
 </head>
 <body>
 <header>
-This is the actual index i want to be displayed.
+
 </header>
    <h1> Welcome to Tsunami World </h1>
-   <p1> server, render, nginx, websocket, cloudflare, java, uipath (vb.net), python, Unity (c#), github, sql&postgresql, printful, stripe, hls, rtmp, </p1>
+   <p1> nginx, java, uipath (vb.net), python, Unity (c#), sql&postgresql, stripe, hls, rtmp, </p1>
 </body>
 </html>

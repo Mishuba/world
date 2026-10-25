@@ -3,22 +3,31 @@ require_once __DIR__ . "/LevelUp/Printful.php";
 
 class TfMembers extends BeginnerStore
 {
+    public $membership;
+    public $membershipCost;
+    public $userPsw;
+
     public function CheckoutNewSignUp()
     {
-        if (($xmljson['type'] ?? '') === 'Subscribers Signup') {
-            $membership = $_POST['membershipLevel'] ?? 'free';
-            $userData = $_POST;
-            if (!empty($userData['TFRegisterPassword'])) {
-                $userData['TFRegisterPassword'] = password_hash($userData['TFRegisterPassword'], PASSWORD_DEFAULT);
+        if (($this->xmljson['type'] ?? '') === 'community') {
+            $this->membership = $this->xmljson["payload"]["membership"];
+            $this->membershipCost = $this->xmljson["payload"]["cost"];
+            if (!empty($this->xmljson["payload"]["form"]['TFRegisterPassword'])) {
+                $this->userPsw = password_hash($this->xmljson["payload"]["form"]['TFRegisterPassword'], PASSWORD_DEFAULT);
             }
 
-            if ($membership === 'free') {
-                InputIntoDatabase($membership, ...array_values($userData));
+            if ($this->membership === 'free') {
+                $this->InputIntoDatabase($this->membership, ...array_values($this->xmljson["payload"]["form"]));
                 $this->respond(['success' => true, 'message' => 'Free membership created']);
             }
 
+            if ($this->xmljson["payload"]["form"]['TFRegisterUsername']) {
+                $this->InputIntoDatabase($this->membership, ...array_values($this->xmljson["payload"]["form"]));
+                $this->respond(['success' => true, 'message' => 'Mishuba membership created']);
+            }
+
             $costMap = ['regular' => 400, 'vip' => 700, 'team' => 1000];
-            $metadata = array_map('strval', $userData); // Convert all values to string for Stripe
+            $metadata = array_map('strval', $this->xmljson["payload"]["form"]); // Convert all values to string for Stripe
 
             $this->stripe->checkout->sessions->create([
                 'payment_method_types' => ['card'],
@@ -27,7 +36,7 @@ class TfMembers extends BeginnerStore
                     [
                         'price_data' => [
                             'currency' => 'usd',
-                            'unit_amount' => $costMap[strtolower($membership)] ?? 2000,
+                            'unit_amount' => $costMap[strtolower($this->membership)] ?? 2000,
                             'product_data' => ['name' => 'Community Member Signup Fee']
                         ],
                         'quantity' => 1

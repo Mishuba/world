@@ -14,11 +14,8 @@ class BeginnerStore extends BasicServer
         $response = curl_exec($ch);
         if (curl_errno($ch)) {
             error_log("Printful cURL error: " . curl_error($ch));
-            curl_close($ch);
             return ['result' => []];
         }
-        curl_close($ch);
-
         $decoded = json_decode($response, true);
         return is_array($decoded) && isset($decoded['result']) ? $decoded : ['result' => []];
     }
@@ -54,10 +51,8 @@ class BeginnerStore extends BasicServer
 
         $response = curl_exec($ch);
         if (curl_errno($ch)) {
-            curl_close($ch);
             return null;
         }
-        curl_close($ch);
 
         $decodedResponse = json_decode($response, true);
         return $decodedResponse['result']['id'] ?? null;
