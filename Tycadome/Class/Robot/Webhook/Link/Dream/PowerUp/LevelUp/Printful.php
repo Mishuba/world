@@ -18,41 +18,37 @@ class BeginnerStore extends BasicServer
         }
 
         $ch = curl_init($url);
-<<<<<<< HEAD
         curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer" . $api]);
-=======
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
->>>>>>> 4616f9c7c6d58fc66f0a8f8faf1af4cfae6fcc39
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FORBID_REUSE, true);
         $response = curl_exec($ch);
-        if (curl_errno($ch)) {
-<<<<<<< HEAD
-            error_log("Printful cURL error: " . curl_error($ch));
-            return ['result' => []];
-        }
-=======
-            $err = curl_error($ch);
-            error_log("Printful cURL error: " . $err);
-            curl_close($ch);
-            return ['result' => [], 'error' => $err];
-        }
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
->>>>>>> 4616f9c7c6d58fc66f0a8f8faf1af4cfae6fcc39
         $decoded = json_decode($response, true);
 
-        // On errors Printful puts a message string in "result", so require an array
-        if ($httpCode >= 400 || !is_array($decoded) || !isset($decoded['result']) || !is_array($decoded['result'])) {
-            $msg = is_array($decoded)
-                ? ($decoded['error']['message'] ?? $decoded['result'] ?? 'Unknown error')
-                : 'Invalid response from Printful';
-            $msg = is_string($msg) ? $msg : json_encode($msg);
-            error_log("Printful API error (HTTP $httpCode) for $url: $msg");
-            return ['result' => [], 'error' => "HTTP $httpCode: $msg"];
+        if (curl_errno($ch)) {
+            error_log("Printful cURL error: " . curl_error($ch));
+            if ($httpCode >= 400 || !is_array($decoded) || !isset($decoded['result']) || !is_array($decoded['result'])) {
+                $msg = is_array($decoded)
+                    ? ($decoded['error']['message'] ?? $decoded['result'] ?? 'Unknown error')
+                    : 'Invalid response from Printful';
+                $msg = is_string($msg) ? $msg : json_encode($msg);
+                error_log("Printful API error (HTTP $httpCode) for $url: $msg");
+                return ['result' => [], 'error' => "HTTP $httpCode: $msg"];
+            }
+            return ['result' => []];
+        } else {
+            $err = curl_error($ch);
+            error_log("Printful cURL error: " . $err);
+            if ($httpCode >= 400 || !is_array($decoded) || !isset($decoded['result']) || !is_array($decoded['result'])) {
+                $msg = is_array($decoded)
+                    ? ($decoded['error']['message'] ?? $decoded['result'] ?? 'Unknown error')
+                    : 'Invalid response from Printful';
+                $msg = is_string($msg) ? $msg : json_encode($msg);
+                error_log("Printful API error (HTTP $httpCode) for $url: $msg");
+                return ['result' => [], 'error' => "HTTP $httpCode: $msg"];
+            }
         }
-
         return $decoded;
     }
 
@@ -309,3 +305,5 @@ class BeginnerStore extends BasicServer
         }
     }
 }
+
+// On errors Printful puts a message string in "result", so require an array
