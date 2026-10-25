@@ -76,6 +76,10 @@ switch ($TycadomeBackend->isApiRequest()) {
         //$TycadomeBackend->loop->addPeriodicTimer(5, function () use ($TycadomeBackend) {foreach ($TycadomeBackend->getActiveFFmpegKeys() as $key) {$TycadomeBackend->reapFFmpeg($key);}});
         //$TycadomeBackend->loop->run();
         break;
+
+    case "user-signin":
+        //$TycadomeBackend->
+        break;
     default:
 
         break;
