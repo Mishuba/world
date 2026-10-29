@@ -81,6 +81,8 @@ switch ($TycadomeBackend->isApiRequest()) {
 case "Stripe-Signature":
 
 $TycadomeBackend-StripeTwo();
+
+break;
     case "websocket":
         // Periodically reap dead FFmpeg processes
         //$TycadomeBackend->loop->addPeriodicTimer(5, function () use ($TycadomeBackend) {foreach ($TycadomeBackend->getActiveFFmpegKeys() as $key) {$TycadomeBackend->reapFFmpeg($key);}});
