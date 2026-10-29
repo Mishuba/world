@@ -7,8 +7,8 @@ $allowed_origins = [
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => 0,
-        'path' => '/../Database/Cookies/',
-        'domain' => 'https://world-l87q.onrender.com',
+        'path' => '/',
+        'domain' => 'world-l87q.onrender.com',
         'secure' => true,
         'httponly' => true,
         'samesite' => 'None'
@@ -16,8 +16,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 } else if (session_status() === PHP_SESSION_ACTIVE) {
     // Session is already active, do nothing
-    session_regenerate_id(true);
-} else {
+    } else {
     // Handle other session statuses if needed disabled
 }
 
@@ -69,9 +68,12 @@ switch ($TycadomeBackend->isApiRequest()) {
         }
         break;
     case "application/json":
-        //$TycadomeBackend->
+        //$TycadomeBackend->members
+
+        // sign in only
+        //session_regenerate_id(true);
         break;    
-    case "application/x-www-orm-urlencoded":
+    case "application/x-www-form-urlencoded":
         $TycadomeBackend->StripeOne();
                 $TycadomeBackend->StripeTwo();
                 $TycadomeBackend->StripeCheckout();
