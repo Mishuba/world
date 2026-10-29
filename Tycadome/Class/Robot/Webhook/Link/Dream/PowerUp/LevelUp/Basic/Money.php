@@ -218,7 +218,7 @@ class BeginnerServer extends BasicServer
                 "requires_payment_method" => "Payment method issue. Try again.",
                 "requires_capture" => "Bank requires confirmation.",
                 "canceled" => "Payment failed. Try later."
-            ]
+            ];
 
             return json_encode([
                 "success" => $status === "succeeded",
@@ -231,8 +231,8 @@ class BeginnerServer extends BasicServer
                 "error" => $status === "succeeded" ? "no error" : null
             ]);
         } catch (ApiErrorException $e) {
-            echo json_encode(['error' => $e->getMessage()]);
-        }
+            return json_encode(['error' => $e->getMessage()]);
+        
         } catch (CardException $e) {
             return json_encode(["error" => $e->getMessage()]);
         } catch (Exception $e) {
