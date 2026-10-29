@@ -78,7 +78,7 @@ switch ($TycadomeBackend->isApiRequest()) {
 //$TycadomeBackend->StripeCheckout();
         break;
 
-case "Stripe-Signature":
+case "Stripe->Signature":
 
 $TycadomeBackend-StripeTwo();
 
