@@ -1,0 +1,9 @@
+/jdk-interim.update.patch.jdk
+The root directory of the JDK software installation. This directory also contains Copyright, README, and Release files.
+
+
+/jdk-interim.update.patch.jdk/lib/src.zip
+The archive that contains the source code for the Java platform.
+
+/jdk-interim.update.patch.jdk/include
+The C-language header files that support native-code programming with the Java Native Interface and the Java Virtual Machine (JVM) Debugger Interface.

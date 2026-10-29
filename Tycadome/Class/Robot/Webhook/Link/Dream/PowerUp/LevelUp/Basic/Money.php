@@ -26,82 +26,6 @@ class BeginnerServer extends BasicServer
         $this->stripe = new StripeClient(getenv("STRIPE_SECRET_KEY"));
     }
 
-    public function StripeBeginningOk()
-    {
-        $action = $this->xmljson['action'] ?? '';
-
-        try {
-            $saveCustomer = $this->xmljson['saveCustomer'] ?? false;
-            $this->customerId = $this->xmljson['customerId'] ?? null;
-            $email = $this->xmljson['email'] ?? null;
-            $this->customer = null;
-
-            // Reuse or create customer if needed
-            if ($saveCustomer) {
-                if ($this->customerId) {
-                    $this->customer = Customer::retrieve($this->customerId);
-                } else {
-                    $this->customer = Customer::create([
-                        'email' => $email
-                    ]);
-                    $this->customerId = $this->customer->id;
-                }
-            }
-
-            switch ($action) {
-
-                case 'createPaymentIntent':
-                    $this->amount = $this->xmljson['amount']; // in cents
-                    $this->currency = $this->xmljson['currency'] ?? 'usd';
-
-                    $this->paymentIntent = PaymentIntent::create([
-                        'amount' => $this->amount,
-                        'currency' => $this->currency,
-                        'customer' => $this->customerId ?? null,
-                        'automatic_payment_methods' => ['enabled' => true],
-                    ]);
-
-                    echo json_encode([
-                        'clientSecret' => $this->paymentIntent->client_secret,
-                        'customerId' => $this->customerId
-                    ]);
-                    break;
-
-                case 'createSubscription':
-                    $this->priceId = $this->xmljson['priceId']; // Stripe Price ID
-
-                    if (!$this->customer) {
-                        // Create customer if not already done
-                        $this->customer = Customer::create([
-                            'email' => $email
-                        ]);
-                        $this->customerId = $this->customer->id;
-                    }
-
-                    $this->subscription = Subscription::create([
-                        'customer' => $this->customerId,
-                        'items' => [['price' => $this->priceId]],
-                        'payment_behavior' => 'default_incomplete',
-                        'expand' => ['latest_invoice.payment_intent'],
-                    ]);
-
-                    $clientSecret = $this->subscription->latest_invoice->payment_intent->client_secret ?? null;
-
-                    echo json_encode([
-                        'clientSecret' => $clientSecret,
-                        'subscriptionId' => $this->subscription->id,
-                        'customerId' => $this->customerId
-                    ]);
-                    break;
-
-                default:
-                    echo json_encode(['error' => 'Invalid action']);
-            }
-
-        } catch (ApiErrorException $e) {
-            echo json_encode(['error' => $e->getMessage()]);
-        }
-    }
     public function getTaxIdType($countryCode): ?string
     {
         $taxIdTypes = [
@@ -110,97 +34,6 @@ class BeginnerServer extends BasicServer
             "GB" => "gb_vat",
         ];
         return $taxIdTypes[$countryCode] ?? null;
-    }
-
-    // --- Main Stripe Payment Function ---
-    public function WhichPaymentWeDoing(
-
-    ): string {
-        try {
-            // Step 1: Create customer
-            $this->customer = $this->stripe->customers->create([
-                "email" => $this->customerData['email'],
-                "name" => $this->customerData['name'],
-                "description" => $this->customerData['description'] ?? "",
-                "address" => ["country" => $this->customerData['countryCode']]
-            ]);
-
-            if (!$this->customer || !isset($customer->id)) {
-                return json_encode(["error" => "Failed to create customer"]);
-            }
-
-            // Set default payment method
-            $this->stripe->customers->update($this->customer->id, [
-                "invoice_settings" => ["default_payment_method" => $this->paymentMethodId]
-            ]);
-
-            // Add tax ID if provided
-            if (!empty($this->customerData['taxId'])) {
-                $taxType = $this->getTaxIdType($this->customerData['countryCode']);
-                if ($taxType) {
-                    $this->stripe->customers->createTaxId($this->customer->id, [
-                        "type" => $taxType,
-                        "value" => $this->customerData['taxId']
-                    ]);
-                }
-            }
-
-            // Step 2: Create PaymentIntent or Subscription
-            if ($this->oneTimePayment) {
-                $this->paymentIntent = $this->stripe->paymentIntents->create([
-                    "amount" => $this->paymentAmount,
-                    "currency" => "usd",
-                    "payment_method" => $this->paymentMethodId,
-                    "confirmation_method" => "manual",
-                    "confirm" => true,
-                    "automatic_payment_methods" => ["enabled" => true],
-                    "off_session" => true,
-                    "receipt_email" => $this->customerData['email'],
-                    "setup_future_usage" => "off_session"
-                ]);
-
-                $status = $this->paymentIntent->status;
-                $clientSecret = $this->paymentIntent->client_secret ?? null;
-
-            } else {
-                $this->subscription = $this->stripe->subscriptions->create([
-                    "customer" => $this->customer->id,
-                    "items" => [["price" => $this->paymentAmount]],
-                    "collection_method" => "charge_automatically",
-                    "payment_behavior" => "default_incomplete",
-                    "expand" => ["latest_invoice.payment_intent"],
-                    "off_session" => true
-                ]);
-
-                $this->paymentIntent = $this->subscription->latest_invoice->payment_intent ?? null;
-                $status = $this->paymentIntent->status ?? "unknown";
-                $clientSecret = $this->paymentIntent->client_secret ?? null;
-            }
-
-            $messages = [
-                "succeeded" => "Payment successful. Thank you!",
-                "requires_action" => "Verification required to complete payment.",
-                "requires_payment_method" => "Payment method issue. Try again.",
-                "requires_capture" => "Bank requires confirmation.",
-                "canceled" => "Payment failed. Try later."
-            ];
-
-            return json_encode([
-                "success" => $status === "succeeded",
-                "requires_action" => $status === "requires_action",
-                "requires_confirmation" => $status === "requires_capture",
-                "requires_source_action" => $status === "requires_payment_method",
-                "message" => $messages[$status] ?? "Unknown status",
-                "payment_intent_client_secret" => $clientSecret,
-                "next_step" => $status === "succeeded" ? ($this->type === "store" ? "Printful_Order" : "none") : null,
-                "error" => $status === "succeeded" ? "no error" : null
-            ]);
-
-        } catch (CardException | ApiErrorException $e) {
-            return json_encode(["error" => $e->getMessage()]);
-        } catch (Exception $e) {
-            return json_encode(["error" => "Unexpected error: " . $e->getMessage()]);
-        }
     }
 
     // -------- Stripe Checkout Session --------
@@ -275,10 +108,11 @@ class BeginnerServer extends BasicServer
         $action = $this->xmljson['action'] ?? '';
 
         try {
-            $saveCustomer = $this->xmljson['saveCustomer'] ?? false;
-            $this->customerId = $this->xmljson['customerId'] ?? null;
-            $email = $this->xmljson['email'] ?? null;
+            $saveCustomer = $this->xmljson["payload"]['saveCustomer'] ?? false;
+            $this->customerId = $this->xmljson["payload"]['customerId'] ?? null;
+            $email = $this->xmljson["payload"]['email'] ?? null;
             $this->customer = null;
+            
 
             // Reuse or create customer if needed
             if ($saveCustomer) {
@@ -286,9 +120,28 @@ class BeginnerServer extends BasicServer
                     $this->customer = Customer::retrieve($this->customerId);
                 } else {
                     $this->customer = Customer::create([
-                        'email' => $email
+                        "email" => $this->customerData['email'],
+                        "name" => $this->customerData['name'],
+                        "description" => $this->customerData['description'] ?? "",
+                        "address" => ["country" => $this->customerData['countryCode']]
                     ]);
                     $this->customerId = $this->customer->id;
+                }
+            }
+
+            // Set default payment method
+            $this->stripe->customers->update($this->customer->id, [
+                "invoice_settings" => ["default_payment_method" => $this->paymentMethodId]
+            ]);
+
+            // Add tax ID if provided
+            if (!empty($this->customerData['taxId'])) {
+                $taxType = $this->getTaxIdType($this->customerData['countryCode']);
+                if ($taxType) {
+                    $this->stripe->customers->createTaxId($this->customer->id, [
+                        "type" => $taxType,
+                        "value" => $this->customerData['taxId']
+                    ]);
                 }
             }
 
@@ -299,17 +152,20 @@ class BeginnerServer extends BasicServer
                     $this->currency = $this->xmljson['currency'] ?? 'usd';
 
                     $paymentIntent = PaymentIntent::create([
-                        'amount' => $this->amount,
-                        'currency' => $this->currency,
-                        'customer' => $this->customerId ?? null,
-                        'automatic_payment_methods' => ['enabled' => true],
+                        "amount" => $this->paymentAmount,
+                        "currency" => "usd",
+                        "payment_method" => $this->paymentMethodId,
+                        "confirmation_method" => "manual",
+                        "confirm" => true,
+                        "automatic_payment_methods" => ["enabled" => true],
+                        "off_session" => true,
+                        "receipt_email" => $this->customerData['email'],
+                        "setup_future_usage" => "off_session"
                     ]);
 
-                    echo json_encode([
-                        'clientSecret' => $paymentIntent->client_secret,
-                        'customerId' => $this->customerId
-                    ]);
-                    break;
+                $status = $this->paymentIntent->status;
+                $clientSecret = $this->paymentIntent->client_secret ?? null;
+                                    break;
 
                 case 'createSubscription':
                     $this->priceId = $this->xmljson['priceId']; // Stripe Price ID
@@ -323,27 +179,64 @@ class BeginnerServer extends BasicServer
                     }
 
                     $this->subscription = Subscription::create([
-                        'customer' => $this->customerId,
-                        'items' => [['price' => $this->priceId]],
-                        'payment_behavior' => 'default_incomplete',
-                        'expand' => ['latest_invoice.payment_intent'],
-                    ]);
+                    "customer" => $this->customer->id,
+                    "items" => [["price" => $this->paymentAmount]],
+                    "collection_method" => "charge_automatically",
+                    "payment_behavior" => "default_incomplete",
+                    "expand" => ["latest_invoice.payment_intent"],
+                    "off_session" => true
+                ]);
 
-                    $clientSecret = $this->subscription->latest_invoice->payment_intent->client_secret ?? null;
-
-                    echo json_encode([
-                        'clientSecret' => $clientSecret,
-                        'subscriptionId' => $this->subscription->id,
-                        'customerId' => $this->customerId
-                    ]);
+                $this->subscription->latest_invoice->payment_intent ?? null;
+                $status = $this->paymentIntent->status ?? "unknown";
+                $clientSecret = $this->paymentIntent->client_secret ?? null;
                     break;
 
+                case 'Stripe Checkout':
+                    $cartItems = $_SESSION['ShoppingCartItems'] ?? [];
+                    if (empty($cartItems)) {
+                        $this->respond(['error' => 'Cart is empty'], 400);
+                    }
+
+                    $checkout = $this->CreateStripeCheckout($cartItems, "$this->allowed_origins[2]/tfMain.php?type=Printful Checkout", "$this->allowed_origins[2]/cancelled.php");
+
+                     $this->respond([
+                        'success' => !empty($checkout['success']),
+                        'checkout_url' => $checkout['url'] ?? null,
+                        'session_id' => $checkout['id'] ?? null,
+                        'error' => $checkout['error'] ?? null
+                    ]);
+                    break;
                 default:
-                    echo json_encode(['error' => 'Invalid action']);
+
+                break;
             }
 
+            $messages = [
+                "succeeded" => "Payment successful. Thank you!",
+                "requires_action" => "Verification required to complete payment.",
+                "requires_payment_method" => "Payment method issue. Try again.",
+                "requires_capture" => "Bank requires confirmation.",
+                "canceled" => "Payment failed. Try later."
+            ]
+
+            return json_encode([
+                "success" => $status === "succeeded",
+                "requires_action" => $status === "requires_action",
+                "requires_confirmation" => $status === "requires_capture",
+                "requires_source_action" => $status === "requires_payment_method",
+                "message" => $messages[$status] ?? "Unknown status",
+                "payment_intent_client_secret" => $clientSecret,
+                "next_step" => $status === "succeeded" ? ($this->type === "store" ? "Printful_Order" : "none") : null,
+                "error" => $status === "succeeded" ? "no error" : null
+            ]);
         } catch (ApiErrorException $e) {
             echo json_encode(['error' => $e->getMessage()]);
+        }
+        } catch (CardException $e) {
+            return json_encode(["error" => $e->getMessage()]);
+        } catch (Exception $e) {
+            return json_encode(["error" => "Unexpected error: " . $e->getMessage()]);
         }
     }
 
@@ -787,22 +680,5 @@ class BeginnerServer extends BasicServer
             }
         }
     }
-    public function StripeCheckout()
-    {
-        if (($this->xmljson['type'] ?? '') === 'Stripe Checkout') {
-            $cartItems = $_SESSION['ShoppingCartItems'] ?? [];
-            if (empty($cartItems))
-                $this->respond(['error' => 'Cart is empty'], 400);
-
-            $checkout = $this->CreateStripeCheckout($cartItems, "$this->allowed_origins[2]/tfMain.php?type=Printful Checkout", "$this->allowed_origins[2]/cancelled.php");
-            $this->respond([
-                'success' => !empty($checkout['success']),
-                'checkout_url' => $checkout['url'] ?? null,
-                'session_id' => $checkout['id'] ?? null,
-                'error' => $checkout['error'] ?? null
-            ]);
-        }
-    }
 }
-
 ?>

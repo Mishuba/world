@@ -71,14 +71,25 @@ switch ($TycadomeBackend->isApiRequest()) {
     case "user-signup":
 
         break;
+    case "user-signin":
+        //$TycadomeBackend->
+        break;
+    case "user-signout":
+        //$TycadomeBackend->
+        break;    
+    case "money":
+        $TycadomeBackend->StripeOne();
+        break;
+    case "stripewebhook":
+        $TycadomeBackend->StripeTwo();
+        break;
+    case "store": 
+        $TycadomeBackend->StripeCheckout();
+        break;
     case "websocket":
         // Periodically reap dead FFmpeg processes
         //$TycadomeBackend->loop->addPeriodicTimer(5, function () use ($TycadomeBackend) {foreach ($TycadomeBackend->getActiveFFmpegKeys() as $key) {$TycadomeBackend->reapFFmpeg($key);}});
         //$TycadomeBackend->loop->run();
-        break;
-
-    case "user-signin":
-        //$TycadomeBackend->
         break;
     default:
 
