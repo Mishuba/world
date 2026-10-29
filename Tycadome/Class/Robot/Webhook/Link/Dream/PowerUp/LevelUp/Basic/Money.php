@@ -117,9 +117,9 @@ class BeginnerServer extends BasicServer
             // Reuse or create customer if needed
             if ($saveCustomer) {
                 if ($this->customerId) {
-                    $this->customer = Customer::retrieve($this->customerId);
+                    $this->customer = $this->stripe->customers->create($this->customerId);
                 } else {
-                    $this->customer = Customer::create([
+                    $this->customer = $this->stripe->customers->create([
                         "email" => $this->customerData['email'],
                         "name" => $this->customerData['name'],
                         "description" => $this->customerData['description'] ?? "",
@@ -151,7 +151,7 @@ class BeginnerServer extends BasicServer
                     $this->amount = $this->xmljson['amount']; // in cents
                     $this->currency = $this->xmljson['currency'] ?? 'usd';
 
-                    $paymentIntent = PaymentIntent::create([
+                    $paymentIntent = $tthis->stripe->paymentIntent->create([
                         "amount" => $this->paymentAmount,
                         "currency" => "usd",
                         "payment_method" => $this->paymentMethodId,
@@ -172,13 +172,13 @@ class BeginnerServer extends BasicServer
 
                     if (!$this->customer) {
                         // Create customer if not already done
-                        $this->customer = Customer::create([
+                        $this->customer = $this->atripe->customers->create([
                             'email' => $email
                         ]);
                         $this->customerId = $this->customer->id;
                     }
 
-                    $this->subscription = Subscription::create([
+                    $this->subscription = $this->stripe->subscriptions->create([
                     "customer" => $this->customer->id,
                     "items" => [["price" => $this->paymentAmount]],
                     "collection_method" => "charge_automatically",
@@ -230,11 +230,11 @@ class BeginnerServer extends BasicServer
                 "next_step" => $status === "succeeded" ? ($this->type === "store" ? "Printful_Order" : "none") : null,
                 "error" => $status === "succeeded" ? "no error" : null
             ]);
+        } catch (CardException $e) {
+            return json_encode(["error" => $e->getMessage()]);
         } catch (ApiErrorException $e) {
             return json_encode(['error' => $e->getMessage()]);
         
-        } catch (CardException $e) {
-            return json_encode(["error" => $e->getMessage()]);
         } catch (Exception $e) {
             return json_encode(["error" => "Unexpected error: " . $e->getMessage()]);
         }
