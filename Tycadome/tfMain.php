@@ -67,7 +67,7 @@ switch ($TycadomeBackend->isApiRequest()) {
             exit;
         }
         break;
-    case "user-signup":
+    case "user.signup":
         $TycadomeBackend->CheckoutNewSignUp();
         break;
     case "application/json":

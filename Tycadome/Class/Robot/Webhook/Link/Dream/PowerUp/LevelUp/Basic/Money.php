@@ -39,7 +39,6 @@ class BeginnerServer extends BasicServer
     // -------- Stripe Checkout Session --------
     public function CreateStripeCheckout(array $cartItems, string $successUrl, string $cancelUrl)
     {
-        $this->stripe = new StripeClient(GETENV("STRIPE_SECRET_KEY"));
         $lineItems = [];
 
         foreach ($cartItems as $item) {
@@ -94,25 +93,13 @@ class BeginnerServer extends BasicServer
         return ['item' => $item];
     }
 
-    public function getStripeClient($secretKey): StripeClient
-    {
-        return new StripeClient($secretKey);
-    }
-
     public function MoneyOne()
     {
-        if (!defined('STRIPE_SECRET_KEY'))
-            die("Error: STRIPE_SECRET_KEY not defined");
-        $this->stripe = new StripeClient(GETENV("STRIPE_SECRET_KEY") ?? '');
-
-        $action = $this->xmljson['action'] ?? '';
-
         try {
             $saveCustomer = $this->xmljson["payload"]['saveCustomer'] ?? false;
             $this->customerId = $this->xmljson["payload"]['customerId'] ?? null;
             $email = $this->xmljson["payload"]['email'] ?? null;
             $this->customer = null;
-
 
             // Reuse or create customer if needed
             if ($saveCustomer) {
@@ -145,13 +132,12 @@ class BeginnerServer extends BasicServer
                 }
             }
 
-            switch ($action) {
-
+            switch ($this->xmljson['action']) {
                 case 'createPaymentIntent':
                     $this->amount = $this->xmljson['amount']; // in cents
                     $this->currency = $this->xmljson['currency'] ?? 'usd';
 
-                    $paymentIntent = $this->stripe->paymentIntent->create([
+                    $this->paymentIntent = $this->stripe->paymentIntent->create([
                         "amount" => $this->paymentAmount,
                         "currency" => "usd",
                         "payment_method" => $this->paymentMethodId,
@@ -290,8 +276,6 @@ class BeginnerServer extends BasicServer
         try {
             if (!defined('STRIPE_SECRET_KEY'))
                 die("Error: STRIPE_SECRET_KEY not defined");
-            $this->stripe = new StripeClient(GETENV("STRIPE_SECRET_KEY") ?? '');
-
             $stripe_webhook_event = Webhook::constructEvent($this->xml, $stripe_sig_header, WebhookSigningSecret);
 
         } catch (\UnexpectedValueException $e) {
