@@ -77,11 +77,14 @@ switch ($TycadomeBackend->isApiRequest()) {
         //session_regenerate_id(true);
         break;
     case "application/x-www-form-urlencoded":
-        $TycadomeBackend->StripeOne();
-        $TycadomeBackend->StripeTwo();
-        $TycadomeBackend->StripeCheckout();
+        $TycadomeBackend->MoneyOne();
+        //$TycadomeBackend->StripeCheckout();
         break;
 
+    case "Stripe->Signature":
+        $TycadomeBackend->MoneyTwo();
+
+        break;
     case "websocket":
         // Periodically reap dead FFmpeg processes
         //$TycadomeBackend->loop->addPeriodicTimer(5, function () use ($TycadomeBackend) {foreach ($TycadomeBackend->getActiveFFmpegKeys() as $key) {$TycadomeBackend->reapFFmpeg($key);}});
