@@ -16,7 +16,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 } else if (session_status() === PHP_SESSION_ACTIVE) {
     // Session is already active, do nothing
-    } else {
+} else {
     // Handle other session statuses if needed disabled
 }
 
@@ -67,16 +67,19 @@ switch ($TycadomeBackend->isApiRequest()) {
             exit;
         }
         break;
+    case "user-signup":
+        $TycadomeBackend->CheckoutNewSignUp();
+        break;
     case "application/json":
         //$TycadomeBackend->members
 
         // sign in only
         //session_regenerate_id(true);
-        break;    
+        break;
     case "application/x-www-form-urlencoded":
         $TycadomeBackend->StripeOne();
-                $TycadomeBackend->StripeTwo();
-                $TycadomeBackend->StripeCheckout();
+        $TycadomeBackend->StripeTwo();
+        $TycadomeBackend->StripeCheckout();
         break;
 
     case "websocket":

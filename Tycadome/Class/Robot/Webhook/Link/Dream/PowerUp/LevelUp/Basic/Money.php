@@ -112,7 +112,7 @@ class BeginnerServer extends BasicServer
             $this->customerId = $this->xmljson["payload"]['customerId'] ?? null;
             $email = $this->xmljson["payload"]['email'] ?? null;
             $this->customer = null;
-            
+
 
             // Reuse or create customer if needed
             if ($saveCustomer) {
@@ -163,9 +163,9 @@ class BeginnerServer extends BasicServer
                         "setup_future_usage" => "off_session"
                     ]);
 
-                $status = $this->paymentIntent->status;
-                $clientSecret = $this->paymentIntent->client_secret ?? null;
-                                    break;
+                    $status = $this->paymentIntent->status;
+                    $clientSecret = $this->paymentIntent->client_secret ?? null;
+                    break;
 
                 case 'createSubscription':
                     $this->priceId = $this->xmljson['priceId']; // Stripe Price ID
@@ -179,17 +179,17 @@ class BeginnerServer extends BasicServer
                     }
 
                     $this->subscription = Subscription::create([
-                    "customer" => $this->customer->id,
-                    "items" => [["price" => $this->paymentAmount]],
-                    "collection_method" => "charge_automatically",
-                    "payment_behavior" => "default_incomplete",
-                    "expand" => ["latest_invoice.payment_intent"],
-                    "off_session" => true
-                ]);
+                        "customer" => $this->customer->id,
+                        "items" => [["price" => $this->paymentAmount]],
+                        "collection_method" => "charge_automatically",
+                        "payment_behavior" => "default_incomplete",
+                        "expand" => ["latest_invoice.payment_intent"],
+                        "off_session" => true
+                    ]);
 
-                $this->subscription->latest_invoice->payment_intent ?? null;
-                $status = $this->paymentIntent->status ?? "unknown";
-                $clientSecret = $this->paymentIntent->client_secret ?? null;
+                    $this->subscription->latest_invoice->payment_intent ?? null;
+                    $status = $this->paymentIntent->status ?? "unknown";
+                    $clientSecret = $this->paymentIntent->client_secret ?? null;
                     break;
 
                 case 'Stripe Checkout':
@@ -200,7 +200,7 @@ class BeginnerServer extends BasicServer
 
                     $checkout = $this->CreateStripeCheckout($cartItems, "$this->allowed_origins[2]/tfMain.php?type=Printful Checkout", "$this->allowed_origins[2]/cancelled.php");
 
-                     $this->respond([
+                    $this->respond([
                         'success' => !empty($checkout['success']),
                         'checkout_url' => $checkout['url'] ?? null,
                         'session_id' => $checkout['id'] ?? null,
@@ -209,7 +209,7 @@ class BeginnerServer extends BasicServer
                     break;
                 default:
 
-                break;
+                    break;
             }
 
             $messages = [
@@ -218,7 +218,7 @@ class BeginnerServer extends BasicServer
                 "requires_payment_method" => "Payment method issue. Try again.",
                 "requires_capture" => "Bank requires confirmation.",
                 "canceled" => "Payment failed. Try later."
-            ]
+            ];
 
             return json_encode([
                 "success" => $status === "succeeded",
@@ -232,7 +232,6 @@ class BeginnerServer extends BasicServer
             ]);
         } catch (ApiErrorException $e) {
             echo json_encode(['error' => $e->getMessage()]);
-        }
         } catch (CardException $e) {
             return json_encode(["error" => $e->getMessage()]);
         } catch (Exception $e) {

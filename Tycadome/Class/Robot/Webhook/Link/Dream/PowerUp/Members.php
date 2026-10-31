@@ -9,49 +9,23 @@ class TfMembers extends BeginnerStore
 
     public function CheckoutNewSignUp()
     {
+        $costMap = ['regular' => 400, 'vip' => 700, 'team' => 1000];
         if (($this->xmljson['type'] ?? '') === 'community') {
             $this->membership = $this->xmljson["payload"]["membership"];
-            $this->membershipCost = $this->xmljson["payload"]["cost"];
+            $this->membershipCost = $this->xmljson["payload"]["membershipcost"];
             if (!empty($this->xmljson["payload"]["form"]['TFRegisterPassword'])) {
                 $this->userPsw = password_hash($this->xmljson["payload"]["form"]['TFRegisterPassword'], PASSWORD_DEFAULT);
             }
 
-            if ($this->membership === 'free') {
-                $this->InputIntoDatabase($this->membership, ...array_values($this->xmljson["payload"]["form"]));
-                $this->respond(['success' => true, 'message' => 'Free membership created']);
-            }
-
-            if ($this->xmljson["payload"]["form"]['TFRegisterUsername']) {
+            if ($this->xmljson["payload"]["form"]['TFRegisterUsername'] === "mishuba") {
+                $this->membership = "vip";
                 $this->InputIntoDatabase($this->membership, ...array_values($this->xmljson["payload"]["form"]));
                 $this->respond(['success' => true, 'message' => 'Mishuba membership created']);
-            }
-
-            $costMap = ['regular' => 400, 'vip' => 700, 'team' => 1000];
-            $metadata = array_map('strval', $this->xmljson["payload"]["form"]); // Convert all values to string for Stripe
-
-            $this->stripe->checkout->sessions->create([
-                'payment_method_types' => ['card'],
-                'mode' => 'payment',
-                'line_items' => [
-                    [
-                        'price_data' => [
-                            'currency' => 'usd',
-                            'unit_amount' => $costMap[strtolower($this->membership)] ?? 2000,
-                            'product_data' => ['name' => 'Community Member Signup Fee']
-                        ],
-                        'quantity' => 1
-                    ]
-                ],
-                'success_url' => "$this->allowed_origins[2]/tfMain.php?session_id={CHECKOUT_SESSION_ID}",
-                'cancel_url' => "$this->allowed_origins[2]/failed.php",
-                'metadata' => $metadata
-            ]);
-
-            if (!empty($s->url)) {
-                header("Location: " . "https://world-l87q.onrender.com/");
-                exit;
             } else {
-                $this->respond(['error' => 'Stripe session missing URL'], 500);
+                if ($this->membership === 'free') {
+                    $this->InputIntoDatabase($this->membership, ...array_values($this->xmljson["payload"]["form"]));
+                    $this->respond(['success' => true, 'message' => 'Free membership created']);
+                }
             }
         }
     }
