@@ -6,13 +6,10 @@ RUN apt-get update && apt-get install -y \
     openjdk-21-jdk-headless \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /app/Java/mae
 
 # Copy compiled Java app
 COPY build/StreamingApp.jar /app/Mae/Main.jar
-
-# Copy any config files
-COPY config/ /app/config/
 
 EXPOSE 8080 1935
 

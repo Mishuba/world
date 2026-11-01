@@ -62,6 +62,19 @@ class TycadomeServer
 
     }
 
+    public function appendToCSV(string $file, array $values, array $header = [])
+    {
+        $exists = file_exists($file);
+        $f = fopen($file, $exists ? "a" : "w");
+
+        if (!$exists && $header) {
+            fputcsv($f, $header);
+        }
+
+        fputcsv($f, $values);
+        fclose($f);
+    }
+
     public function getIpAddress()
     {
         if (!empty($_SERVER["HTTP_CLIENT_IP"])) {
@@ -131,31 +144,31 @@ class TycadomeServer
         exit;
     }
     public function isApiRequest()
-{
-    $this->httpcontenttype    = $_SERVER['CONTENT_TYPE'] ?? '';
-    $this->httpxrequestwith   = $_SERVER['HTTP_X_REQUESTED_WITH'] ?? '';
-    $this->httpxrequesttype   = $_SERVER['HTTP_X_REQUEST_TYPE'] ?? '';
-    $this->httprequestmethod  = $_SERVER['REQUEST_METHOD'] ?? '';
+    {
+        $this->httpcontenttype = $_SERVER['CONTENT_TYPE'] ?? '';
+        $this->httpxrequestwith = $_SERVER['HTTP_X_REQUESTED_WITH'] ?? '';
+        $this->httpxrequesttype = $_SERVER['HTTP_X_REQUEST_TYPE'] ?? '';
+        $this->httprequestmethod = $_SERVER['REQUEST_METHOD'] ?? '';
 
-    // 1. Stripe webhook (check first, it is also application/json)
-    if (isset($_SERVER['HTTP_STRIPE_SIGNATURE'])) {
-        return "Stripe-Signature";
+        // 1. Stripe webhook (check first, it is also application/json)
+        if (isset($_SERVER['HTTP_STRIPE_SIGNATURE'])) {
+            return "Stripe-Signature";
+        }
+
+        // 2. Explicit action header (fetchRadioSongs, websocket, etc.)
+        if ($this->httpxrequesttype !== '') {
+            return $this->httpxrequesttype;
+        }
+
+        // 3. Content type, normalized (strips "; charset=UTF-8")
+        $ct = strtolower(trim(explode(';', $this->httpcontenttype)[0]));
+        if ($ct === 'application/json' || $ct === 'application/x-www-form-urlencoded') {
+            return $ct;
+        }
+
+        // 4. Fallback
+        return $this->httprequestmethod;
     }
-
-    // 2. Explicit action header (fetchRadioSongs, websocket, etc.)
-    if ($this->httpxrequesttype !== '') {
-        return $this->httpxrequesttype;
-    }
-
-    // 3. Content type, normalized (strips "; charset=UTF-8")
-    $ct = strtolower(trim(explode(';', $this->httpcontenttype)[0]));
-    if ($ct === 'application/json' || $ct === 'application/x-www-form-urlencoded') {
-        return $ct;
-    }
-
-    // 4. Fallback
-    return $this->httprequestmethod;
-}
 
     public function writeCookies(array $xmljson, int $days = 30)
     {
