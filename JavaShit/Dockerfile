@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy compiled Java app
-COPY build/StreamingApp.jar /app/streaming.jar
+COPY build/StreamingApp.jar /app/Mae/Main.jar
 
 # Copy any config files
 COPY config/ /app/config/
