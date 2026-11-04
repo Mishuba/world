@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  php-app:
+    build:
+      context: ./php-app
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./php-app/src:/var/www/html
+    networks:
+      - streaming-network
+
+  java-streaming:
+    build:
+      context: ./java-streaming
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+      - "1935:1935"
+    volumes:
+      - ./java-streaming/config:/app/config
+    networks:
+      - streaming-network
+    depends_on:
+      - chat-server
+
+  chat-server:
+    build:
+      context: ./chat-server
+      dockerfile: Dockerfile
+    ports:
+      - "9090:9090"
+    networks:
+      - streaming-network
+
+networks:
+  streaming-network:
+    driver: bridge
