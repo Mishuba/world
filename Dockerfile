@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ---- .NET SDK source (copied into the final image) ----
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS dotnet
 
