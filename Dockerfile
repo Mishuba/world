@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # ---- .NET SDK source (copied into the final image) ----
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS dotnet
 
@@ -10,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         nginx supervisor gettext-base curl libpq-dev \
         git unzip ffmpeg \
         openjdk-17-jdk-headless \
+        git unzip ffmpeg maven \
         python3 python3-pip python3-venv \
     && docker-php-ext-install pdo pdo_pgsql \
     && rm -rf /var/lib/apt/lists/* \
@@ -44,8 +43,9 @@ COPY . .
 RUN dotnet build "C#/c#.csproj" -c Release || echo "C# build failed"
 RUN dotnet build "vb.net/vb.net.vbproj" -c Release || echo "VB.NET build failed"
 RUN mkdir -p /opt/build/java \
-    && find Java -name "*.java" > /tmp/java-files.txt \
-    && if [ -s /tmp/java-files.txt ]; then javac -d /opt/build/java @/tmp/java-files.txt || echo "Java build failed"; fi
+    && (mvn -B -q -f Java/pom.xml -DskipTests package \
+        && cp "$(ls Java/target/*.jar | head -n 1)" /opt/build/java/app.jar \
+        || echo "Java build failed")
 
 # =====================================================================
 # Web services: one per language, each on its own port.
@@ -165,7 +165,7 @@ public class Server {
         String mainClass = System.getenv().getOrDefault("JAVA_MAIN", "Main");
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 5004), 0);
         server.createContext("/", exchange -> {
-            Process p = new ProcessBuilder("java", "-cp", "/opt/build/java", mainClass)
+            Process p = new ProcessBuilder("java", "-jar", "/opt/build/java/app.jar")
                     .redirectErrorStream(true).start();
             byte[] body = p.getInputStream().readAllBytes();
             exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-8");
