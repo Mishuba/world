@@ -6,24 +6,20 @@
 vendor
 composer.lock
 
-# .NET build output
-vbnet/bin
-vbnet/obj
-**/bin/Debug
-**/bin/Release
+# .NET build output (any project, any depth)
+**/bin
+**/obj
 *.user
-.vs
+**/.vs
 
 # Java build output
-java/target
-java/.mvn/wrapper/maven-wrapper.jar
-java/build
-java/.gradle
+Java/**/target
+Java/**/.mvn/wrapper/maven-wrapper.jar
 *.class
 
 # Python
-python/venv
-python/.venv
+**/venv
+**/.venv
 **/__pycache__
 *.pyc
 .pytest_cache
