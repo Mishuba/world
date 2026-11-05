@@ -43,10 +43,9 @@ COPY . .
 RUN dotnet build "C#/c#.csproj" -c Release || echo "C# build failed"
 RUN dotnet build "vb.net/vb.net.vbproj" -c Release || echo "VB.NET build failed"
 RUN mkdir -p /opt/build/java \
-    && (mvn -B -q -f Java/pom.xml -DskipTests package \
-        && cp "$(ls Java/target/*.jar | head -n 1)" /opt/build/java/app.jar \
+    && (mvn -B -q -f Java/mae/pom.xml -DskipTests package \
+        && cp Java/mae/target/app.jar /opt/build/java/app.jar \
         || echo "Java build failed")
-
 # =====================================================================
 # Web services: one per language, each on its own port.
 # Each one runs YOUR existing program and returns its output over HTTP.
