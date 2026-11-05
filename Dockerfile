@@ -8,6 +8,7 @@ FROM php:8.3-fpm-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         nginx supervisor gettext-base curl libpq-dev \
+        git unzip ffmpeg \
         openjdk-17-jdk-headless \
         python3 python3-pip python3-venv \
     && docker-php-ext-install pdo pdo_pgsql \
@@ -34,7 +35,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 COPY composer.json ./
-RUN composer install --no-dev --no-scripts --no-interaction --optimize-autoloader || true
+RUN composer config --global audit.block-insecure false \
+    && composer install --no-dev --prefer-dist --no-scripts --no-interaction --optimize-autoloader || true
 
 COPY . .
 
