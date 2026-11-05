@@ -1,61 +1,14 @@
 #!/bin/sh
-export PORT=${PORT:-10000}
-envsubst '${PORT}' < /etc/nginx/default.conf.template > /etc/nginx/conf.d/default.conf
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+set -e
 
-#STREAM_KEY="$1"
-#INPUT_STREAM="rtmp://localhost/live/$STREAM_KEY"
-#LOGFILE="/var/log/ffmpeg-restream.log"
+# Render provides $PORT; fall back for local runs
+export PORT="${PORT:-10000}"
 
-#Twitch url
-#TWITCH_URL=""
-##Youtbe url
-#YOUTUBE_URL="rtmp://a.rtmp.youtube.com/live2/3egr-4vfq-56yj-amtg-e7v1"
+# Fill in only ${PORT}, leaving nginx's own $variables untouched
+envsubst '${PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
-#CPU_LIMIT=2.5
+# Validate nginx config before starting
+nginx -t
 
-#while true; do
-
-#CPU_LOAD=$(awk '{print $1}' /proc/loadavg)
-
-#echo "$(date) Stream start: $STREAM_KEY | CPU: $CPU_LOAD" >> "$LOGFILE"
-
-#if (( $(echo "$CPU_LOAD < $CPU_LIMIT" | bc -l) )); then
-
-#    echo "$(date) Using HIGH QUALITY pipeline" >> "$LOGFILE"
-
-#    /usr/bin/ffmpeg -loglevel warning \
-#    -fflags nobuffer -flags low_delay \
-#    -i "$INPUT_STREAM" \
-#    -vf "fps=30,minterpolate=fps=60,hqdn3d=1.5:1.5:6:6,scale=1280:720:flags=lanczos,unsharp=5:5:0.8:3:3:0.4,eq=contrast=1.1:saturation=1.15" \
-#    -c:v libx264 -preset veryfast -tune zerolatency \
-#    -x264-params "nal-hrd=cbr:force-cfr=1" \
-#    -b:v 3000k -minrate 2000k -maxrate 4000k -bufsize 8000k \
-#    -g 60 -keyint_min 60 \
-#    -c:a aac -b:a 128k \
-#    -f flv "$YOUTUBE_URL" \
-#    >> "$LOGFILE" 2>&1
-
-#else
-
-#    echo "$(date) CPU HIGH — switching to FALLBACK pipeline" >> "$LOGFILE"
-
-#    /usr/bin/ffmpeg -loglevel warning \
-#    -fflags nobuffer -flags low_delay \
-#    -i "$INPUT_STREAM" \
-#    -vf "fps=30,scale=1280:720:flags=lanczos,hqdn3d=1.0:1.0:3:3,eq=contrast=1.05:saturation=1.1" \
-#    -c:v libx264 -preset veryfast -tune zerolatency \
-#    -x264-params "nal-hrd=cbr:force-cfr=1" \
-#    -b:v 2500k -maxrate 3500k -minrate 1500k -bufsize 6000k \
-#    -g 60 -keyint_min 60 \
-#    -c:a aac -b:a 128k \
-#    -f flv "$YOUTUBE_URL" \
-#    >> "$LOGFILE" 2>&1
-
-#fi
-
-#echo "$(date) FFmpeg crashed/restarted for stream: $STREAM_KEY" >> "$LOGFILE"
-
-#sleep 2
-
-#done
+# Start php-fpm + nginx + language services under supervisor
+exec /usr/bin/supervisord -c /etc/supervisord.conf
