@@ -6,11 +6,10 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS dotnet
 FROM php:8.3-fpm-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        nginx supervisor gettext-base curl libpq-dev \
-        git unzip ffmpeg \
-        openjdk-17-jdk-headless \
-        git unzip ffmpeg maven \
-        python3 python3-pip python3-venv \
+    nginx supervisor gettext-base curl libpq-dev \
+    git unzip ffmpeg maven \
+    openjdk-17-jdk-headless \
+    python3 python3-pip python3-venv \
     && docker-php-ext-install pdo pdo_pgsql \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
@@ -45,8 +44,8 @@ RUN dotnet build "C#/c#.csproj" -c Release || echo "C# build failed"
 RUN dotnet build "vb.net/vb.net.vbproj" -c Release || echo "VB.NET build failed"
 RUN mkdir -p /opt/build/java \
     && (mvn -B -q -f Java/mae/pom.xml -DskipTests package \
-        && cp Java/mae/target/app.jar /opt/build/java/app.jar \
-        || echo "Java build failed")
+    && cp Java/mae/target/app.jar /opt/build/java/app.jar \
+    || echo "Java build failed")
 # =====================================================================
 # Web services: one per language, each on its own port.
 # Each one runs YOUR existing program and returns its output over HTTP.
