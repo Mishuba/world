@@ -57,26 +57,36 @@ RUN mkdir -p /opt/build/java \
 COPY <<"PYEOF" /opt/services/python/server.py
 import os
 import subprocess
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs
 
 SCRIPT = os.environ.get("PY_SCRIPT", "Syntax.py")
 
 class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        r = subprocess.run(
-            ["python3", SCRIPT],
-            cwd="/var/www/html/Python",
-            capture_output=True, text=True, timeout=60,
-        )
-        body = (r.stdout + r.stderr).encode()
-        self.send_response(200)
+    def run_it(self):
+        args = parse_qs(urlparse(self.path).query).get("arg", [])
+        length = int(self.headers.get("Content-Length") or 0)
+        stdin = self.rfile.read(length).decode() if length else None
+        try:
+            r = subprocess.run(
+                ["python3", SCRIPT, *args],
+                cwd="/var/www/html/Python",
+                input=stdin, capture_output=True, text=True, timeout=60,
+            )
+            status = 200 if r.returncode == 0 else 500
+            body = (r.stdout + r.stderr).encode()
+        except subprocess.TimeoutExpired:
+            status, body = 504, b"timeout"
+        self.send_response(status)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
-HTTPServer(("127.0.0.1", 5001), Handler).serve_forever()
-PYEOF
+    do_GET = run_it
+    do_POST = run_it
+
+ThreadingHTTPServer(("127.0.0.1", 5001), Handler).serve_forever()
 
 # ---- C# service (port 5002) ----
 COPY <<"CSPROJEOF" /opt/services/csharp/csserver.csproj
@@ -95,19 +105,35 @@ using System.Diagnostics;
 
 var app = WebApplication.CreateBuilder(args).Build();
 
-app.MapGet("/", async () =>
+app.MapMethods("/", new[] { "GET", "POST" }, async (HttpRequest req) =>
 {
-    var psi = new ProcessStartInfo("dotnet",
-        "run --project \"/var/www/html/C#/c#.csproj\" -c Release --no-build")
+    var psi = new ProcessStartInfo("dotnet")
     {
         RedirectStandardOutput = true,
-        RedirectStandardError = true
+        RedirectStandardError = true,
+        RedirectStandardInput = true
     };
+    foreach (var a in new[] { "run", "--project", "/var/www/html/C#/c#.csproj", "-c", "Release", "--no-build", "--" })
+        psi.ArgumentList.Add(a);
+    foreach (var a in req.Query["arg"])
+        psi.ArgumentList.Add(a!);
+
     using var p = Process.Start(psi)!;
-    var o = await p.StandardOutput.ReadToEndAsync();
-    var e = await p.StandardError.ReadToEndAsync();
-    await p.WaitForExitAsync();
-    return Results.Text(o + e);
+    using var reader = new StreamReader(req.Body);
+    var body = await reader.ReadToEndAsync();
+    var oTask = p.StandardOutput.ReadToEndAsync();
+    var eTask = p.StandardError.ReadToEndAsync();
+    if (body.Length > 0) await p.StandardInput.WriteAsync(body);
+    p.StandardInput.Close();
+
+    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+    try { await p.WaitForExitAsync(cts.Token); }
+    catch (OperationCanceledException)
+    {
+        p.Kill(true);
+        return Results.Text("timeout", statusCode: 504);
+    }
+    return Results.Text(await oTask + await eTask, statusCode: p.ExitCode == 0 ? 200 : 500);
 });
 
 app.Run();
@@ -128,6 +154,8 @@ VBPROJEOF
 COPY <<"VBEOF" /opt/services/vbnet/Program.vb
 Imports System.Net
 Imports System.Diagnostics
+Imports System.IO
+Imports System.Threading
 
 Module Server
     Sub Main()
@@ -136,17 +164,60 @@ Module Server
         listener.Start()
         While True
             Dim ctx = listener.GetContext()
-            Dim psi As New ProcessStartInfo("dotnet", "run --project ""/var/www/html/vb.net/vb.net.vbproj"" -c Release --no-build")
+            ThreadPool.QueueUserWorkItem(AddressOf HandleRequest, ctx)
+        End While
+    End Sub
+
+    Sub HandleRequest(state As Object)
+        Dim ctx = DirectCast(state, HttpListenerContext)
+        Dim status As Integer = 200
+        Dim output As String = ""
+        Try
+            Dim psi As New ProcessStartInfo("dotnet")
             psi.RedirectStandardOutput = True
             psi.RedirectStandardError = True
-            Dim p = Process.Start(psi)
-            Dim output = p.StandardOutput.ReadToEnd() & p.StandardError.ReadToEnd()
-            p.WaitForExit()
-            Dim bytes = System.Text.Encoding.UTF8.GetBytes(output)
-            ctx.Response.ContentType = "text/plain; charset=utf-8"
-            ctx.Response.OutputStream.Write(bytes, 0, bytes.Length)
-            ctx.Response.Close()
-        End While
+            psi.RedirectStandardInput = True
+            For Each a In {"run", "--project", "/var/www/html/vb.net/vb.net.vbproj", "-c", "Release", "--no-build", "--"}
+                psi.ArgumentList.Add(a)
+            Next
+            Dim vals = ctx.Request.QueryString.GetValues("arg")
+            If vals IsNot Nothing Then
+                For Each a In vals
+                    psi.ArgumentList.Add(a)
+                Next
+            End If
+
+            Dim body As String = ""
+            If ctx.Request.HasEntityBody Then
+                Using reader As New StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding)
+                    body = reader.ReadToEnd()
+                End Using
+            End If
+
+            Using p = Process.Start(psi)
+                Dim oTask = p.StandardOutput.ReadToEndAsync()
+                Dim eTask = p.StandardError.ReadToEndAsync()
+                If body.Length > 0 Then p.StandardInput.Write(body)
+                p.StandardInput.Close()
+                If Not p.WaitForExit(60000) Then
+                    p.Kill(True)
+                    status = 504
+                    output = "timeout"
+                Else
+                    output = oTask.Result & eTask.Result
+                    If p.ExitCode <> 0 Then status = 500
+                End If
+            End Using
+        Catch ex As Exception
+            status = 500
+            output = ex.Message
+        End Try
+
+        Dim bytes = System.Text.Encoding.UTF8.GetBytes(output)
+        ctx.Response.StatusCode = status
+        ctx.Response.ContentType = "text/plain; charset=utf-8"
+        ctx.Response.OutputStream.Write(bytes, 0, bytes.Length)
+        ctx.Response.Close()
     End Sub
 End Module
 VBEOF
@@ -158,18 +229,55 @@ RUN dotnet build /opt/services/csharp/csserver.csproj -c Release -o /opt/service
 COPY <<"JAVAEOF" /opt/services/java/Server.java
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class Server {
     public static void main(String[] args) throws Exception {
-        String mainClass = System.getenv().getOrDefault("JAVA_MAIN", "Main");
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 5004), 0);
+        server.setExecutor(Executors.newCachedThreadPool());
         server.createContext("/", exchange -> {
-            Process p = new ProcessBuilder("java", "-jar", "/opt/build/java/app.jar")
-                    .redirectErrorStream(true).start();
-            byte[] body = p.getInputStream().readAllBytes();
+            int status = 200;
+            byte[] out;
+            try {
+                List<String> cmd = new ArrayList<>(List.of("java", "-jar", "/opt/build/java/app.jar"));
+                String q = exchange.getRequestURI().getRawQuery();
+                if (q != null) {
+                    for (String pair : q.split("&")) {
+                        int i = pair.indexOf('=');
+                        if (i < 0) continue;
+                        String k = URLDecoder.decode(pair.substring(0, i), StandardCharsets.UTF_8);
+                        if (k.equals("arg"))
+                            cmd.add(URLDecoder.decode(pair.substring(i + 1), StandardCharsets.UTF_8));
+                    }
+                }
+                byte[] in = exchange.getRequestBody().readAllBytes();
+                Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+                CompletableFuture<byte[]> result = CompletableFuture.supplyAsync(() -> {
+                    try { return p.getInputStream().readAllBytes(); }
+                    catch (Exception e) { return new byte[0]; }
+                });
+                try (var os = p.getOutputStream()) { os.write(in); } catch (Exception ignored) {}
+                if (!p.waitFor(60, TimeUnit.SECONDS)) {
+                    p.destroyForcibly();
+                    status = 504;
+                    out = "timeout".getBytes(StandardCharsets.UTF_8);
+                } else {
+                    out = result.get(5, TimeUnit.SECONDS);
+                    if (p.exitValue() != 0) status = 500;
+                }
+            } catch (Exception e) {
+                status = 500;
+                out = String.valueOf(e.getMessage()).getBytes(StandardCharsets.UTF_8);
+            }
             exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-8");
-            exchange.sendResponseHeaders(200, body.length);
-            exchange.getResponseBody().write(body);
+            exchange.sendResponseHeaders(status, out.length);
+            exchange.getResponseBody().write(out);
             exchange.close();
         });
         server.start();
