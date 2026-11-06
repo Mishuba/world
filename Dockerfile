@@ -87,6 +87,7 @@ class Handler(BaseHTTPRequestHandler):
     do_POST = run_it
 
 ThreadingHTTPServer(("127.0.0.1", 5001), Handler).serve_forever()
+PYEOF
 
 # ---- C# service (port 5002) ----
 COPY <<"CSPROJEOF" /opt/services/csharp/csserver.csproj
