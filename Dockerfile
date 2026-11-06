@@ -28,7 +28,7 @@ COPY Python/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt || echo "pip install failed - check Python/requirements.txt"
 
 # PHP: let PHP see Render environment variables
-RUN printf "[www]\nclear_env = no\n" > /usr/local/etc/php-fpm.d/zz-env.conf
+RUN printf "[www]\nclear_env = no\nrequest_terminate_timeout = 300\nphp_admin_value[max_execution_time] = 300\n" > /usr/local/etc/php-fpm.d/zz-env.conf
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
